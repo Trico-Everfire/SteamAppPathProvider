@@ -10,25 +10,23 @@
 
 #include "KeyValue.h"
 
-#include <assert.h>
 #include <filesystem>
 #include <fmt/core.h>
 #include <fstream>
 #include <iostream>
 #include <vector>
 
-//We need to define on if we're running Posix.
-//And the correct version of GNUC.
-#if defined( __GNUC__ ) && !defined(_WIN32) && !defined(POSIX)
+// We need to define on if we're running Posix.
+// And the correct version of GNUC.
+#if defined( __GNUC__ ) && !defined( _WIN32 ) && !defined( POSIX )
 #if __GNUC__ < 4
 #error "SAPP requires GCC 4.X or greater."
 #endif
 #define POSIX 1
 #endif
 
-
 // windows and POSIX have different
-//  path separators, windows uses \
+//      path separators, windows uses \
 //whilst POSIX uses /
 
 #ifdef _WIN32
@@ -53,7 +51,6 @@ class ISteamSearchProvider
 	//(this also means that this can be used without the need for
 	// steam to be running, unlike the actual Steam API binaries.)
 public:
-
 	virtual ~ISteamSearchProvider() = default;
 
 	virtual bool Available() const = 0;
@@ -61,6 +58,8 @@ public:
 	virtual bool BIsAppInstalled( AppId_t appID ) const = 0;
 
 	virtual uint32 GetNumInstalledApps() const = 0;
+
+	virtual bool BIsSourceGame( AppId_t appID ) const = 0;
 
 	virtual uint32 GetInstalledApps( AppId_t *pvecAppID, uint32 unMaxAppIDs ) const = 0;
 
@@ -72,7 +71,6 @@ class CFileSystemSearchProvider final : public ISteamSearchProvider
 	// File paths shouldn't be longer than 1048 characters.
 	// You can bump this if it causes issues.
 	uint32 MAX_PATH = 1048;
-
 	// we use static (S) helper (H) functions to patch up
 	// OS specific quirks related to path separators.
 	static void S_HFixDoubleSlashes( char *pStr )
@@ -254,73 +252,63 @@ public:
 		// This makes it faster, and reduces memory usage.
 		libFolder.Solidify();
 
-		// We store the drive paths in a vector.
-		std::vector<char *> libFolders;
-
 		// We then check for the "path" variable. This variable tells us
 		// the location our games are installed per drive.
-		for ( int i = 0; i < libFolder["libraryfolders"].ChildCount(); i++ )
+		auto &libKeyValue = libFolder["libraryfolders"];
+		for ( int i = 0; i < libKeyValue.ChildCount(); i++ )
 		{
-			KeyValue &folder = libFolder["libraryfolders"].Get( i );
+			KeyValue &folder = libKeyValue.Get( i );
 			const char *name = folder.Key().string;
 			if ( !strcmp( name, "TimeNextStatsReport" ) || !strcmp( name, "ContentStatsID" ) )
 				continue;
-			// if path is found, we push the string value into libFolders.
-			// if the user happens to use the old libraryfolders.vdf format
-			//(which happens to not have path) we push the entire kv result
-			// into libFolders because that's the only thing containing inside.
-			//(this is untested with the old format, can someone verify?)
-			if ( char *f = folder["path"].Value().string )
-				libFolders.push_back( f );
-			else if ( auto p = folder.Value().string )
-				libFolders.push_back( p );
-		}
 
-		// we add /steamapps/ and fix any mistakes if there ever were any.
-		for ( auto &folder : libFolders )
-		{
-			S_HAppendSlash( folder, MAX_PATH - strlen( folder ) - 1 );
-			strncat( folder, "steamapps", MAX_PATH - strlen( folder ) - 10 );
-			S_HFixSlashes( folder );
-		}
+			// We get the path to the drive locations where
+			// steam games are installed.
+			// There are 2 formats for this.
+			// The old format, which is a string.
+			// And the new format, which is a KV object,
+			// to where the "path" key holds the path.
+			auto pathValue = folder["path"].Value();
+			if ( !pathValue.string )
+				pathValue = folder.Value();
+			if ( !pathValue.string )
+				continue;
+			char *pathString = pathValue.string;
 
-// more unimplemented wine logic.
-// read the comment at the top of the file
-// if you wish to implement wine compatibility.
+			// we add /steamapps/ and fix any mistakes if there ever were any.
+			S_HAppendSlash( pathString, MAX_PATH - pathValue.length - 1 );
+			strncat( pathString, "steamapps", MAX_PATH - pathValue.length - 10 );
+			S_HFixSlashes( pathString );
+
+			// more unimplemented wine logic.
+			// read the comment at the top of the file
+			// if you wish to implement wine compatibility.
 #ifdef WIN32
-		if ( inWine )
-		{
-			char z[MAX_PATH];
-			for ( int i = 1; i < libFolders.size(); ++i ) // skip main steam install dir
-			{
-				// this is probably wrong. but we don't support
-				// wine anyway.
-				auto &folder = libFolders[i];
-				strncpy( z, "Z:", strlen( folder ) );
-				strncat( z, folder, strlen( folder ) );
-				S_HFixSlashes( z );
-				strncpy( folder, z, strlen( z ) );
-			}
-		}
+// if ( inWine )
+//{
+// this is invalid. but we don't support wine anyway.
+//	char z[MAX_PATH];
+//	for ( int i = 1; i < libFolders.size(); ++i ) // skip main steam install dir
+//	{
+//		auto &folder = libFolders[i];
+//		strncpy( z, "Z:", strlen( MAX_PATH ) );
+//		strncat( z, folder, strlen( MAX_PATH ) );
+//		S_HFixSlashes( z );
+//		strncpy( folder, z, strlen( z ) );
+//	}
+// }
 #endif
 
-		// We now get the actual installed games and their Steam App ID (AppId_t)
-		for ( const auto &folder : libFolders )
-		{
-			// folder becomes unavailable because of the directory iterator.
-			// so we copy it into a temporary string buffer.
-			char pathR[MAX_PATH];
-			memcpy( pathR, folder, MAX_PATH );
-			// we iterate through the entire directory in search of app manifest files. which hold the app id.
-			// we also store the path to this file.
-			for ( auto const &dir_entry : fs::directory_iterator { folder } )
+			// We iterate through the entire directory in search of app manifest files. which hold the app id.
+			// We also store the path to this file.
+			// We now get the actual installed games and their Steam App ID (AppId_t)
+			for ( auto const &dir_entry : fs::directory_iterator { pathString } )
 			{
-				// because folder has become unavailable.
-				// and PathR would get written to every time.
-				// we copy PathR into path to store instead.
-				//(this is probably a terrible way of doing it.)
+				// pathString falls out of scope the moment the constructor ends.
+				// So we put it onto the heap and store that in Games.
+				// This'll later be destroyed by the Game class's destructor.
 				char *path = new char[MAX_PATH];
-				memcpy( path, pathR, MAX_PATH );
+				memcpy( path, pathString, MAX_PATH );
 				auto strPath = dir_entry.path().string();
 				auto indd = strPath.find( "appmanifest_" );
 				auto indd2 = strPath.rfind( ".acf" );
@@ -331,7 +319,8 @@ public:
 				}
 			}
 		}
-		// we then sort the games.
+
+		// We then sort the games.
 		// Is this even needed?
 		// We don't really have a logical order when fetching.
 		std::sort( games.begin(), games.end(), []( const Game &a, const Game &b )
@@ -351,16 +340,16 @@ public:
 		return !games.empty();
 	}
 
-	bool BIsSourceGame( AppId_t appID )
+	bool BIsSourceGame( AppId_t appID ) const override
 	{
-		//We get the game install path and check it recursively until
-		//we find a gameinfo.txt file or we'll return false if it isn't
-		//there.
+		// We get the game install path and check it recursively until
+		// we find a gameinfo.txt file or we'll return false if it isn't
+		// there.
 		char dirPath[MAX_PATH];
-		GetAppInstallDir(appID, dirPath, MAX_PATH);
-		for ( auto const &dir_entry : fs::recursive_directory_iterator { fs::path(dirPath) } )
+		GetAppInstallDir( appID, dirPath, MAX_PATH );
+		for ( auto const &dir_entry : fs::recursive_directory_iterator { fs::path( dirPath ) } )
 		{
-			if(!dir_entry.is_directory() &&  dir_entry.path().string().find("gameinfo.txt") != std::string::npos )
+			if ( !dir_entry.is_directory() && dir_entry.path().string().find( "gameinfo.txt" ) != std::string::npos )
 				return true;
 		}
 		return false;
@@ -370,7 +359,10 @@ public:
 	{
 		// we check if the game exists and will return
 		// true or false depending on if it does.
-		const auto game = std::find_if( games.begin(), games.end(), [appID]( const Game &g ){ return g.appid == appID; } );
+		const auto game = std::find_if( games.begin(), games.end(), [appID]( const Game &g )
+										{
+											return g.appid == appID;
+										} );
 		return game != games.end();
 	}
 
@@ -407,13 +399,16 @@ public:
 		// we get the install directory.
 		// Append /common/ to it.
 		// And then append the install directory to it afterwards.
-		auto fileValue = file["AppState"]["installdir"].Value().string;
+		auto fileDir = file["AppState"]["installdir"].Value();
+		auto fileValue = fileDir.string;
+		auto fileLength = fileDir.length;
+
 		strcpy( pchFolder, game->library );
 		S_HAppendSlash( pchFolder, cchFolderBufferSize - 1 );
 		strncat( pchFolder, "common", cchFolderBufferSize - 7 );
 		S_HAppendSlash( pchFolder, cchFolderBufferSize - 8 );
-		strncat( pchFolder, fileValue, cchFolderBufferSize - strlen( game->library ) - 8 );
-		S_HAppendSlash( pchFolder, cchFolderBufferSize - strlen( game->library ) - 9 );
+		strncat( pchFolder, fileValue, cchFolderBufferSize - fileLength - 8 );
+		S_HAppendSlash( pchFolder, cchFolderBufferSize - fileLength - 9 );
 		S_HFixSlashes( pchFolder );
 		return 1; // fix if need len
 	}
