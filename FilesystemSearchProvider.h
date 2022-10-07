@@ -10,6 +10,7 @@
 
 #include "KeyValue.h"
 
+#include <assert.h>
 #include <filesystem>
 #include <fmt/core.h>
 #include <fstream>
@@ -271,7 +272,7 @@ public:
 			//(this is untested with the old format, can someone verify?)
 			if ( char *f = folder["path"].Value().string )
 				libFolders.push_back( f );
-			else if ( auto p = folder.ToString() )
+			else if ( auto p = folder.Value().string )
 				libFolders.push_back( p );
 		}
 
