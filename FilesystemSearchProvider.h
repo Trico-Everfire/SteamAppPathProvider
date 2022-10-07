@@ -26,7 +26,7 @@
 #endif
 
 // windows and POSIX have different
-//      path separators, windows uses \
+//       path separators, windows uses \
 //whilst POSIX uses /
 
 #ifdef _WIN32
@@ -47,6 +47,16 @@
 
 namespace fs = std::filesystem;
 typedef uint32_t AppId_t, uint32;
+
+//we implement our own strlcpy.
+auto sapp_strlcpy( char* dst, char* src, size_t n )
+{
+	int len = strlen( src );
+	assert(len < n);
+	auto byte = memcpy(dst,src,n);
+	dst[len] = '\0';
+	return byte;
+}
 
 class ISteamSearchProvider
 {
@@ -120,9 +130,7 @@ class CFileSystemSearchProvider final : public ISteamSearchProvider
 		int len = strlen( pStr );
 		if ( len > 0 && !( pStr[len - 1] == INCORRECT_PATH_SEPARATOR || pStr[len - 1] == CORRECT_PATH_SEPARATOR ) )
 		{
-			if ( len + 1 >= strSize )
-				// we throw an error if the length exceeds the size.
-				throw( pStr );
+			assert(len + 1 < strSize);
 
 			pStr[len] = CORRECT_PATH_SEPARATOR;
 			pStr[len + 1] = 0;
@@ -282,9 +290,9 @@ public:
 			if ( !pathValue.string )
 				continue;
 
-			char* pathString = new char[MAX_PATH];
+			char *pathString = new char[MAX_PATH];
 
-			strncpy(pathString,pathValue.string,pathValue.length);
+			strncpy( pathString, pathValue.string, pathValue.length );
 
 			// we add /steamapps and fix any mistakes if there ever were any.
 			strncat( pathString, CORRECT_PATH_SEPARATOR_S "steamapps", MAX_PATH - pathValue.length - 10 );
@@ -312,13 +320,13 @@ public:
 			// We iterate through the entire directory in search of app manifest files. which hold the app id.
 			// We also store the path to this file.
 			// We now get the actual installed games and their Steam App ID (AppId_t)
-			for ( auto const &dir_entry : fs::directory_iterator ( (char*) pathString ) )
+			for ( auto const &dir_entry : fs::directory_iterator( (char *)pathString ) )
 			{
 				// pathString falls out of scope the moment the constructor ends.
 				// So we put it onto the heap and store that in Games.
 				// This'll later be destroyed by the Game class's destructor.
 				char *path = new char[MAX_PATH];
-				strncpy( path, pathString, MAX_PATH );
+				sapp_strlcpy( path, pathString, MAX_PATH );
 				auto strPath = dir_entry.path().string();
 				auto indd = strPath.find( "appmanifest_" );
 				auto indd2 = strPath.rfind( ".acf" );
@@ -329,7 +337,7 @@ public:
 				}
 			}
 
-			//We clean up pathString;
+			// We clean up pathString;
 			delete[] pathString;
 		}
 
@@ -446,7 +454,7 @@ public:
 	~CFileSystemSearchProvider()
 	{
 		// we own the char array, and it will remain in memory until destroyed.
-		for(auto game : games)
+		for ( auto game : games )
 		{
 			delete[] game.library;
 		}
