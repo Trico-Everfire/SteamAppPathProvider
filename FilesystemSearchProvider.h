@@ -37,6 +37,14 @@
 #define INCORRECT_PATH_SEPARATOR '\\'
 #endif
 
+#ifdef _WIN32
+#define CORRECT_PATH_SEPARATOR_S   "\\"
+#define INCORRECT_PATH_SEPARATOR_S "/"
+#elif POSIX
+#define CORRECT_PATH_SEPARATOR_S   "/"
+#define INCORRECT_PATH_SEPARATOR_S "\\"
+#endif
+
 namespace fs = std::filesystem;
 typedef uint32_t AppId_t, uint32;
 
@@ -273,11 +281,13 @@ public:
 				pathValue = folder.Value();
 			if ( !pathValue.string )
 				continue;
-			char *pathString = pathValue.string;
 
-			// we add /steamapps/ and fix any mistakes if there ever were any.
-			S_HAppendSlash( pathString, MAX_PATH - pathValue.length - 1 );
-			strncat( pathString, "steamapps", MAX_PATH - pathValue.length - 10 );
+			char* pathString = new char[MAX_PATH];
+
+			strncpy(pathString,pathValue.string,pathValue.length);
+
+			// we add /steamapps and fix any mistakes if there ever were any.
+			strncat( pathString, CORRECT_PATH_SEPARATOR_S "steamapps", MAX_PATH - pathValue.length - 10 );
 			S_HFixSlashes( pathString );
 
 			// more unimplemented wine logic.
@@ -302,13 +312,13 @@ public:
 			// We iterate through the entire directory in search of app manifest files. which hold the app id.
 			// We also store the path to this file.
 			// We now get the actual installed games and their Steam App ID (AppId_t)
-			for ( auto const &dir_entry : fs::directory_iterator { pathString } )
+			for ( auto const &dir_entry : fs::directory_iterator ( (char*) pathString ) )
 			{
 				// pathString falls out of scope the moment the constructor ends.
 				// So we put it onto the heap and store that in Games.
 				// This'll later be destroyed by the Game class's destructor.
 				char *path = new char[MAX_PATH];
-				memcpy( path, pathString, MAX_PATH );
+				strncpy( path, pathString, MAX_PATH );
 				auto strPath = dir_entry.path().string();
 				auto indd = strPath.find( "appmanifest_" );
 				auto indd2 = strPath.rfind( ".acf" );
@@ -318,6 +328,9 @@ public:
 													  strPath.substr( ( indd + 12 ), indd2 - ( indd + 12 ) ).c_str() ) ) } );
 				}
 			}
+
+			//We clean up pathString;
+			delete[] pathString;
 		}
 
 		// We then sort the games.
@@ -403,10 +416,8 @@ public:
 		auto fileValue = fileDir.string;
 		auto fileLength = fileDir.length;
 
-		strcpy( pchFolder, game->library );
-		S_HAppendSlash( pchFolder, cchFolderBufferSize - 1 );
-		strncat( pchFolder, "common", cchFolderBufferSize - 7 );
-		S_HAppendSlash( pchFolder, cchFolderBufferSize - 8 );
+		strncpy( pchFolder, game->library, cchFolderBufferSize );
+		strncat( pchFolder, CORRECT_PATH_SEPARATOR_S "common" CORRECT_PATH_SEPARATOR_S, cchFolderBufferSize - 8 );
 		strncat( pchFolder, fileValue, cchFolderBufferSize - fileLength - 8 );
 		S_HAppendSlash( pchFolder, cchFolderBufferSize - fileLength - 9 );
 		S_HFixSlashes( pchFolder );
@@ -435,7 +446,10 @@ public:
 	~CFileSystemSearchProvider()
 	{
 		// we own the char array, and it will remain in memory until destroyed.
-		std::destroy( games.begin(), games.end() );
+		for(auto game : games)
+		{
+			delete[] game.library;
+		}
 	}
 
 private:
