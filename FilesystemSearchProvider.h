@@ -14,12 +14,22 @@
 #include <fmt/core.h>
 #include <fstream>
 #include <iostream>
-#include <steam_api.h>
 #include <vector>
+
+//We need to define on if we're running Posix.
+//And the correct version of GNUC.
+#if defined( __GNUC__ ) && !defined(_WIN32) && !defined(POSIX)
+#if __GNUC__ < 4
+#error "SAPP requires GCC 4.X or greater."
+#endif
+#define POSIX 1
+#endif
+
 
 // windows and POSIX have different
 //  path separators, windows uses \
 //whilst POSIX uses /
+
 #ifdef _WIN32
 #define CORRECT_PATH_SEPARATOR	 '\\'
 #define INCORRECT_PATH_SEPARATOR '/'
@@ -29,6 +39,7 @@
 #endif
 
 namespace fs = std::filesystem;
+typedef uint32_t AppId_t, uint32;
 
 class ISteamSearchProvider
 {
@@ -41,6 +52,7 @@ class ISteamSearchProvider
 	//(this also means that this can be used without the need for
 	// steam to be running, unlike the actual Steam API binaries.)
 public:
+
 	virtual ~ISteamSearchProvider() = default;
 
 	virtual bool Available() const = 0;
