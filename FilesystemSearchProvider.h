@@ -26,7 +26,7 @@
 #endif
 
 // windows and POSIX have different
-//       path separators, windows uses \
+//        path separators, windows uses \
 //whilst POSIX uses /
 
 #ifdef _WIN32
@@ -48,20 +48,20 @@
 namespace fs = std::filesystem;
 typedef uint32_t AppId_t, uint32;
 
-//we implement our own strlcpy.
+// we implement our own strlcpy.
 class ISteamSearchProvider
 {
+public:
 
 protected:
-	auto sapp_strlcpy( char* dst, char* src, size_t n )
+	auto sapp_strlcpy( char *dst, char *src, size_t n )
 	{
 		int len = strlen( src );
-		assert(len < n);
-		auto byte = memcpy(dst,src,n);
+		assert( len < n );
+		auto byte = memcpy( dst, src, n );
 		dst[len] = '\0';
 		return byte;
 	}
-
 
 	// we have a class with the virtual const functions.
 	// these functions are based on Valve's Steam API.
@@ -133,7 +133,7 @@ class CFileSystemSearchProvider final : public ISteamSearchProvider
 		int len = strlen( pStr );
 		if ( len > 0 && !( pStr[len - 1] == INCORRECT_PATH_SEPARATOR || pStr[len - 1] == CORRECT_PATH_SEPARATOR ) )
 		{
-			assert(len + 1 < strSize);
+			assert( len + 1 < strSize );
 
 			pStr[len] = CORRECT_PATH_SEPARATOR;
 			pStr[len + 1] = 0;
@@ -156,6 +156,75 @@ class CFileSystemSearchProvider final : public ISteamSearchProvider
 		out.append( buf, 0, stream.gcount() );
 		return out;
 	}
+
+	class Game
+	{
+	public:
+		~Game()
+		{
+			free( gameName );
+			free( library );
+			free( installDir );
+			free( icon );
+		}
+
+		Game( const Game &game )
+		{
+			gameName = strdup( game.gameName );
+			library = strdup( game.library );
+			installDir = strdup( game.installDir );
+			icon = strdup( game.icon );
+			appid = game.appid;
+		}
+
+		Game( Game &&game )
+		{
+			gameName = std::exchange( game.gameName, nullptr );
+			library = std::exchange( game.library, nullptr );
+			installDir = std::exchange( game.installDir, nullptr );
+			icon = std::exchange( game.icon, nullptr );
+			appid = std::exchange( game.appid, 0 );
+		}
+
+		Game &operator=( const Game &game )
+		{
+			if ( &game == this )
+				return *this;
+			gameName = strdup( game.gameName );
+			library = strdup( game.library );
+			installDir = strdup( game.installDir );
+			icon = strdup( game.icon );
+			appid = game.appid;
+			return *this;
+		}
+
+		Game &operator=( Game &&game )
+		{
+			if ( &game == this )
+				return *this;
+			std::swap( gameName, game.gameName );
+			std::swap( library, game.library );
+			std::swap( installDir, game.installDir );
+			std::swap( icon, game.icon );
+			std::swap( appid, game.appid );
+			return *this;
+		}
+
+		Game( const char *vGameName, const char *vLibrary, const char *vInstallDir, const char *vIcon, AppId_t vAppid )
+		{
+			gameName = strdup( vGameName );
+			library = strdup( vLibrary );
+			installDir = strdup( vInstallDir );
+			icon = strdup( vIcon );
+			appid = vAppid;
+		}
+
+		char *gameName;
+		char *library;
+		char *installDir;
+		char *icon;
+		AppId_t appid;
+	};
 
 public:
 	CFileSystemSearchProvider()
@@ -182,36 +251,38 @@ public:
 		// Unimplemented wine logic.
 		// Make sure you implement a wine detector
 		// if you wish to use it. (read comment at the top.)
-//		else
-//		{
-//			namespace fs = std::filesystem;
-//			const char *pHome = l_getenv( "HOME" );
-//			if ( !pHome )
-//				return;
-//			sprintf( steamLocation, "Z:%s/.steam/steam", pHome );
-//			S_HFixSlashes( steamLocation );
-//
-//			std::error_code c;
-//			if ( !fs::exists( steamLocation, c ) )
-//			{
-//				steamLocation[0] = '\0';
-//				fs::path d{ "cwd\\steamclient64.dll" };
-//				for ( const auto &e : fs::directory_iterator( R"(Z:\proc\)" ) )
-//				{
-//					if ( fs::exists( e / d, c ) )
-//					{
-//						c.clear();
-//						const auto s = fs::read_symlink( e.path() / "cwd", c );
-//						if ( c )
-//							continue;
-//						V_strcpy_safe( steamLocation, s.string().c_str() );
-//						break;
-//					}
-//				}
-//				if ( steamLocation[0] == '\0' )
-//					return;
-//			}
-//		}
+#ifdef WINE
+		else
+		{
+			namespace fs = std::filesystem;
+			const char *pHome = l_getenv( "HOME" );
+			if ( !pHome )
+				return;
+			sprintf( steamLocation, "Z:%s/.steam/steam", pHome );
+			S_HFixSlashes( steamLocation );
+
+			std::error_code c;
+			if ( !fs::exists( steamLocation, c ) )
+			{
+				steamLocation[0] = '\0';
+				fs::path d { "cwd\\steamclient64.dll" };
+				for ( const auto &e : fs::directory_iterator( R"(Z:\proc\)" ) )
+				{
+					if ( fs::exists( e / d, c ) )
+					{
+						c.clear();
+						const auto s = fs::read_symlink( e.path() / "cwd", c );
+						if ( c )
+							continue;
+						V_strcpy_safe( steamLocation, s.string().c_str() );
+						break;
+					}
+				}
+				if ( steamLocation[0] == '\0' )
+					return;
+			}
+		}
+#endif
 #else
 		// We get the location where Steam is installed.
 		char steamLocation[MAX_PATH * 2];
@@ -304,20 +375,19 @@ public:
 			// more unimplemented wine logic.
 			// read the comment at the top of the file
 			// if you wish to implement wine compatibility.
-#ifdef WIN32
-// if ( inWine )
-//{
-// this is invalid. but we don't support wine anyway.
-//	char z[MAX_PATH];
-//	for ( int i = 1; i < libFolders.size(); ++i ) // skip main steam install dir
-//	{
-//		auto &folder = libFolders[i];
-//		strncpy( z, "Z:", strlen( MAX_PATH ) );
-//		strncat( z, folder, strlen( MAX_PATH ) );
-//		S_HFixSlashes( z );
-//		strncpy( folder, z, strlen( z ) );
-//	}
-// }
+#ifdef WINE
+			if ( inWine )
+			{
+				this is invalid.but we don't support wine anyway. char z[MAX_PATH];
+				for ( int i = 1; i < libFolders.size(); ++i ) // skip main steam install dir
+				{
+					auto &folder = libFolders[i];
+					strncpy( z, "Z:", strlen( MAX_PATH ) );
+					strncat( z, folder, strlen( MAX_PATH ) );
+					S_HFixSlashes( z );
+					strncpy( folder, z, strlen( z ) );
+				}
+			}
 #endif
 
 			// We iterate through the entire directory in search of app manifest files. which hold the app id.
@@ -335,10 +405,27 @@ public:
 				auto indd2 = strPath.rfind( ".acf" );
 				if ( ( indd <= strPath.length() ) && ( indd2 <= strPath.length() ) )
 				{
+					auto pathFile = S_HRead_File( strPath );
+					KeyValueRoot appManifest = KeyValueRoot( pathFile.c_str() );
 
+					KeyValue &appState = appManifest["AppState"];
 
-					games.push_back( Game {"sex", "sex", "sex", path, static_cast<AppId_t>( atoi(
-													  strPath.substr( ( indd + 12 ), indd2 - ( indd + 12 ) ).c_str() ) ) } );
+					auto keyName = appState["name"].Value().string;
+					//					char name[keyName.length + 1];
+					//					sapp_strlcpy( name, keyName.string, keyName.length + 1 );
+
+					auto keyInstallDir = appState["installdir"].Value().string;
+					//					char installDir[keyInstallDir.length + 1];
+					//					sapp_strlcpy( installDir, keyInstallDir.string, keyInstallDir.length + 1 );
+
+					auto appid = appState["appid"].Value().string;
+
+					//					char* icon = new char[strlen( librarycache ) + appState["appid"].Value().length + 10];
+					//					strcpy( icon, librarycache );
+					//					strcat( icon, appid );
+					//					strcat( icon, "_icon.jpg" );
+
+					games.push_back( Game { strdup( appid ), path, strdup( keyInstallDir ), "", static_cast<AppId_t>( atoi( strPath.substr( ( indd + 12 ), indd2 - ( indd + 12 ) ).c_str() ) ) } );
 				}
 			}
 
@@ -373,7 +460,7 @@ public:
 		// there.
 		char dirPath[MAX_PATH];
 		GetAppInstallDir( appID, dirPath, MAX_PATH );
-		for ( auto const &dir_entry : fs::recursive_directory_iterator { fs::path( dirPath ) } )
+		for ( auto const &dir_entry : fs::recursive_directory_iterator { fs::path( dirPath ), std::filesystem::directory_options::skip_permission_denied } )
 		{
 			if ( !dir_entry.is_directory() && dir_entry.path().string().find( "gameinfo.txt" ) != std::string::npos )
 				return true;
@@ -394,7 +481,7 @@ public:
 
 	uint32 GetAppInstallDir( AppId_t appID, char *pchFolder, uint32 cchFolderBufferSize ) const override
 	{
-		// we check if the game exists and will return
+		// We check if the game exists and will return
 		// if it doesn't. We can't call BIsAppInstalled because
 		// we need the iterator result.
 		const auto game = std::find_if( games.begin(), games.end(), [appID]( const Game &g )
@@ -402,40 +489,89 @@ public:
 											return g.appid == appID;
 										} );
 		if ( games.end() == game )
-			return 0;
+			return false;
 
 		// we then format the path,
 		// correct file separator,
 		//  and appID into the correct places to get the app manifest.
-		auto formattedName = fmt::format( "{0}{1}appmanifest_{2}.acf", game->library, CORRECT_PATH_SEPARATOR, appID );
-		auto fileContents = S_HRead_File( formattedName );
+//		auto formattedName = fmt::format( "{0}{1}appmanifest_{2}.acf", game->library, CORRECT_PATH_SEPARATOR, appID );
+//		auto fileContents = S_HRead_File( formattedName );
 
 		// we then parse it with SpeedyKeyV.
-		KeyValueRoot file = KeyValueRoot( fileContents.c_str() );
+//		KeyValueRoot file = KeyValueRoot( fileContents.c_str() );
 
 		// first we check for errors, any parsing errors and we won't be able
 		// to use the data in the file and are forced to return.
-		if ( !file.IsValid() )
-			return 0;
+//		if ( !file.IsValid() )
+//			return 0;
 
 		// we solidify the file, as we only need to read from it.
 		// this makes it faster, and reduces memory usage.
-		file.Solidify();
+//		file.Solidify();
 
 		// we get the install directory.
 		// Append /common/ to it.
 		// And then append the install directory to it afterwards.
-		auto fileDir = file["AppState"]["installdir"].Value();
-		auto fileValue = fileDir.string;
-		auto fileLength = fileDir.length;
+//		auto fileDir = file["AppState"]["installdir"].Value();
+//		auto fileValue = fileDir.string;
+//		auto fileLength = fileDir.length;
+
 
 		strncpy( pchFolder, game->library, cchFolderBufferSize );
 		strncat( pchFolder, CORRECT_PATH_SEPARATOR_S "common" CORRECT_PATH_SEPARATOR_S, cchFolderBufferSize - 8 );
-		strncat( pchFolder, fileValue, cchFolderBufferSize - fileLength - 8 );
-		S_HAppendSlash( pchFolder, cchFolderBufferSize - fileLength - 9 );
+		strncat( pchFolder, game->installDir, cchFolderBufferSize - strlen(game->installDir) - 8 );
+		S_HAppendSlash( pchFolder, cchFolderBufferSize - strlen(game->installDir) - 9 );
 		S_HFixSlashes( pchFolder );
-		return 1; // fix if need len
+		return true; // fix if need len
 	}
+
+	Game* GetAppInstallDirEX( AppId_t appID ) const
+	{
+		// We check if the game exists and will return
+		// if it doesn't. We can't call BIsAppInstalled because
+		// we need the iterator result.
+		const auto game = std::find_if( games.begin(), games.end(), [appID]( const Game &g )
+										{
+											return g.appid == appID;
+										} );
+		if ( games.end() == game )
+			return nullptr;
+
+		// we then format the path,
+		// correct file separator,
+		//  and appID into the correct places to get the app manifest.
+		//		auto formattedName = fmt::format( "{0}{1}appmanifest_{2}.acf", game->library, CORRECT_PATH_SEPARATOR, appID );
+		//		auto fileContents = S_HRead_File( formattedName );
+
+		// we then parse it with SpeedyKeyV.
+		//		KeyValueRoot file = KeyValueRoot( fileContents.c_str() );
+
+		// first we check for errors, any parsing errors and we won't be able
+		// to use the data in the file and are forced to return.
+		//		if ( !file.IsValid() )
+		//			return 0;
+
+		// we solidify the file, as we only need to read from it.
+		// this makes it faster, and reduces memory usage.
+		//		file.Solidify();
+
+		// we get the install directory.
+		// Append /common/ to it.
+		// And then append the install directory to it afterwards.
+		//		auto fileDir = file["AppState"]["installdir"].Value();
+		//		auto fileValue = fileDir.string;
+		//		auto fileLength = fileDir.length;
+
+		auto pgb = game.base();
+		auto pgame = new Game(*pgb);
+//		strncpy( pchFolder, game->library, cchFolderBufferSize );
+//		strncat( pchFolder, CORRECT_PATH_SEPARATOR_S "common" CORRECT_PATH_SEPARATOR_S, cchFolderBufferSize - 8 );
+//		strncat( pchFolder, game->installDir, cchFolderBufferSize - strlen(game->installDir) - 8 );
+//		S_HAppendSlash( pchFolder, cchFolderBufferSize - strlen(game->installDir) - 9 );
+//		S_HFixSlashes( pchFolder );
+		return pgame; // fix if need len
+	}
+
 
 	uint32 GetNumInstalledApps() const override
 	{
@@ -455,74 +591,16 @@ public:
 		return unMaxAppIDs <= games.size() ? unMaxAppIDs : games.size();
 	}
 
-	class Game
+	AppId_t* GetInstalledAppsEX() const
 	{
-	public:
-		~Game()
-		{
-			free(gameName);
-			free(library);
-			free(installDir);
-			free(icon);
-		}
-
-		Game(const Game& game)
-		{
-			gameName = strdup(game.gameName);
-			library = strdup(game.library);
-			installDir = strdup(game.installDir);
-			icon = strdup(game.icon);
-			appid = game.appid;
-		}
-
-		Game(Game&& game)
-		{
-			gameName = std::exchange(game.gameName, nullptr);
-			library = std::exchange(game.library, nullptr);
-			installDir = std::exchange(game.installDir, nullptr);
-			icon = std::exchange(game.icon, nullptr);
-			appid = std::exchange(game.appid, 0);
-		}
-
-		Game& operator=(const Game& game)
-		{
-			if (&game == this)
-				return *this;
-			gameName = strdup(game.gameName);
-			library = strdup(game.library);
-			installDir = strdup(game.installDir);
-			icon = strdup(game.icon);
-			appid = game.appid;
-			return *this;
-		}
-
-		Game& operator=(Game&& game)
-		{
-			if (&game == this)
-				return *this;
-			std::swap(gameName, game.gameName);
-			std::swap(library, game.library);
-			std::swap(installDir, game.installDir);
-			std::swap(icon, game.icon);
-			std::swap(appid, game.appid);
-			return *this;
-		}
-
-		Game( const char *vGameName, const char *vLibrary, const char *vInstallDir, const char *vIcon, AppId_t vAppid )
-		{
-			gameName = strdup(vGameName);
-			library = strdup(vLibrary);
-			installDir = strdup(vInstallDir);
-			icon = strdup(vIcon);
-			appid = vAppid;
-		}
-
-		char *gameName;
-		char *library;
-		char *installDir;
-		char *icon;
-		AppId_t appid;
-	};
+		// This returns a new array of appids.
+		// The user owns this array and it's the length of the games vector.
+		// you can use GetNumInstalledApps to get the length.
+		AppId_t* pvecAppID = new AppId_t[GetNumInstalledApps()];
+		for ( int i = 0; i < games.size(); i++ )
+			pvecAppID[i] = games.at( i ).appid;
+		return  pvecAppID;
+	}
 
 private:
 	// custom struct to store the appids and library paths.
