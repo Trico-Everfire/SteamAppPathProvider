@@ -49,17 +49,20 @@ namespace fs = std::filesystem;
 typedef uint32_t AppId_t, uint32;
 
 //we implement our own strlcpy.
-auto sapp_strlcpy( char* dst, char* src, size_t n )
-{
-	int len = strlen( src );
-	assert(len < n);
-	auto byte = memcpy(dst,src,n);
-	dst[len] = '\0';
-	return byte;
-}
-
 class ISteamSearchProvider
 {
+
+protected:
+	auto sapp_strlcpy( char* dst, char* src, size_t n )
+	{
+		int len = strlen( src );
+		assert(len < n);
+		auto byte = memcpy(dst,src,n);
+		dst[len] = '\0';
+		return byte;
+	}
+
+
 	// we have a class with the virtual const functions.
 	// these functions are based on Valve's Steam API.
 	// which stubbed the original implementation to prevent.
@@ -332,7 +335,9 @@ public:
 				auto indd2 = strPath.rfind( ".acf" );
 				if ( ( indd <= strPath.length() ) && ( indd2 <= strPath.length() ) )
 				{
-					games.push_back( Game { path, static_cast<AppId_t>( atoi(
+
+
+					games.push_back( Game {"sex", "sex", "sex", path, static_cast<AppId_t>( atoi(
 													  strPath.substr( ( indd + 12 ), indd2 - ( indd + 12 ) ).c_str() ) ) } );
 				}
 			}
@@ -450,24 +455,78 @@ public:
 		return unMaxAppIDs <= games.size() ? unMaxAppIDs : games.size();
 	}
 
-	// custom destructor to dispose of the memory we use.
-	~CFileSystemSearchProvider()
+	class Game
 	{
-		// we own the char array, and it will remain in memory until destroyed.
-		for ( auto game : games )
+	public:
+		~Game()
 		{
-			delete[] game.library;
+			free(gameName);
+			free(library);
+			free(installDir);
+			free(icon);
 		}
-	}
+
+		Game(const Game& game)
+		{
+			gameName = strdup(game.gameName);
+			library = strdup(game.library);
+			installDir = strdup(game.installDir);
+			icon = strdup(game.icon);
+			appid = game.appid;
+		}
+
+		Game(Game&& game)
+		{
+			gameName = std::exchange(game.gameName, nullptr);
+			library = std::exchange(game.library, nullptr);
+			installDir = std::exchange(game.installDir, nullptr);
+			icon = std::exchange(game.icon, nullptr);
+			appid = std::exchange(game.appid, 0);
+		}
+
+		Game& operator=(const Game& game)
+		{
+			if (&game == this)
+				return *this;
+			gameName = strdup(game.gameName);
+			library = strdup(game.library);
+			installDir = strdup(game.installDir);
+			icon = strdup(game.icon);
+			appid = game.appid;
+			return *this;
+		}
+
+		Game& operator=(Game&& game)
+		{
+			if (&game == this)
+				return *this;
+			std::swap(gameName, game.gameName);
+			std::swap(library, game.library);
+			std::swap(installDir, game.installDir);
+			std::swap(icon, game.icon);
+			std::swap(appid, game.appid);
+			return *this;
+		}
+
+		Game( const char *vGameName, const char *vLibrary, const char *vInstallDir, const char *vIcon, AppId_t vAppid )
+		{
+			gameName = strdup(vGameName);
+			library = strdup(vLibrary);
+			installDir = strdup(vInstallDir);
+			icon = strdup(vIcon);
+			appid = vAppid;
+		}
+
+		char *gameName;
+		char *library;
+		char *installDir;
+		char *icon;
+		AppId_t appid;
+	};
 
 private:
 	// custom struct to store the appids and library paths.
 	// as well as the games vector.
-	struct Game
-	{
-		const char *library;
-		AppId_t appid;
-	};
 	std::vector<Game> games;
 };
 
