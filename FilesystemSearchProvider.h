@@ -157,6 +157,8 @@ class CFileSystemSearchProvider final : public ISteamSearchProvider
 		return out;
 	}
 
+	//Game class (thanks Scell555) retains it's own memory
+	//and deletes it when it's destructor is called.
 	class Game
 	{
 	public:
@@ -317,6 +319,16 @@ public:
 		}
 #endif
 
+		// We get the location of the library cache location.
+		char librarycache[MAX_PATH];
+		strcpy( librarycache, steamLocation );
+		strcat( librarycache, CORRECT_PATH_SEPARATOR_S "appcache" CORRECT_PATH_SEPARATOR_S "librarycache" CORRECT_PATH_SEPARATOR_S );
+
+		// we fix any mess-ups with folder paths, as they are OS specific and
+		// can break if not accounted for.
+		S_HFixDoubleSlashes( librarycache );
+		S_HFixSlashes( librarycache );
+
 		// after getting the steam location, we need the libraryfolders.vdf
 		// they hold the information on what drives are used to store games
 		// you've installed.
@@ -364,9 +376,11 @@ public:
 			if ( !pathValue.string )
 				continue;
 
-			char *pathString = new char[MAX_PATH];
+			char *pathString = strdup(pathValue.string);
 
-			strncpy( pathString, pathValue.string, pathValue.length );
+			//strncpy( pathString, pathValue.string, pathValue.length );
+
+
 
 			// we add /steamapps and fix any mistakes if there ever were any.
 			strncat( pathString, CORRECT_PATH_SEPARATOR_S "steamapps", MAX_PATH - pathValue.length - 10 );
@@ -378,7 +392,7 @@ public:
 #ifdef WINE
 			if ( inWine )
 			{
-				this is invalid.but we don't support wine anyway. char z[MAX_PATH];
+				//this is invalid.but we don't support wine anyway. char z[MAX_PATH];
 				for ( int i = 1; i < libFolders.size(); ++i ) // skip main steam install dir
 				{
 					auto &folder = libFolders[i];
@@ -390,16 +404,18 @@ public:
 			}
 #endif
 
+			if(!fs::exists(pathString)) continue;
+
 			// We iterate through the entire directory in search of app manifest files. which hold the app id.
 			// We also store the path to this file.
 			// We now get the actual installed games and their Steam App ID (AppId_t)
-			for ( auto const &dir_entry : fs::directory_iterator( (char *)pathString ) )
+			for ( auto const &dir_entry : fs::directory_iterator( (char *)pathString, fs::directory_options::skip_permission_denied ))
 			{
 				// pathString falls out of scope the moment the constructor ends.
 				// So we put it onto the heap and store that in Games.
 				// This'll later be destroyed by the Game class's destructor.
-				char *path = new char[MAX_PATH];
-				sapp_strlcpy( path, pathString, MAX_PATH );
+//				char *path = strdup(pathString);//new char[MAX_PATH];
+//				sapp_strlcpy( path, pathString, MAX_PATH );
 				auto strPath = dir_entry.path().string();
 				auto indd = strPath.find( "appmanifest_" );
 				auto indd2 = strPath.rfind( ".acf" );
@@ -420,17 +436,17 @@ public:
 
 					auto appid = appState["appid"].Value().string;
 
-					//					char* icon = new char[strlen( librarycache ) + appState["appid"].Value().length + 10];
-					//					strcpy( icon, librarycache );
-					//					strcat( icon, appid );
-					//					strcat( icon, "_icon.jpg" );
+					char icon[strlen( librarycache ) + appState["appid"].Value().length + 10];
+					strcpy( icon, librarycache );
+					strcat( icon, appid );
+					strcat( icon, "_icon.jpg" );
 
-					games.push_back( Game { strdup( appid ), path, strdup( keyInstallDir ), "", static_cast<AppId_t>( atoi( strPath.substr( ( indd + 12 ), indd2 - ( indd + 12 ) ).c_str() ) ) } );
+					games.push_back( Game { keyName, pathString, keyInstallDir , icon, static_cast<AppId_t>( atoi( strPath.substr( ( indd + 12 ), indd2 - ( indd + 12 ) ).c_str() ) ) } );
 				}
 			}
 
 			// We clean up pathString;
-			delete[] pathString;
+			//free(pathString);
 		}
 
 		// We then sort the games.
