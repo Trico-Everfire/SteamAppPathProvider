@@ -26,7 +26,7 @@
 #endif
 
 // windows and POSIX have different
-//        path separators, windows uses \
+//          path separators, windows uses \
 //whilst POSIX uses /
 
 #ifdef _WIN32
@@ -51,8 +51,6 @@ typedef uint32_t AppId_t, uint32;
 // we implement our own strlcpy.
 class ISteamSearchProvider
 {
-public:
-
 protected:
 	auto sapp_strlcpy( char *dst, char *src, size_t n )
 	{
@@ -74,91 +72,8 @@ protected:
 public:
 	virtual ~ISteamSearchProvider() = default;
 
-	virtual bool Available() const = 0;
-
-	virtual bool BIsAppInstalled( AppId_t appID ) const = 0;
-
-	virtual uint32 GetNumInstalledApps() const = 0;
-
-	virtual bool BIsSourceGame( AppId_t appID ) const = 0;
-
-	virtual uint32 GetInstalledApps( AppId_t *pvecAppID, uint32 unMaxAppIDs ) const = 0;
-
-	virtual uint32 GetAppInstallDir( AppId_t appID, char *pchFolder, uint32 cchFolderBufferSize ) const = 0;
-};
-
-class CFileSystemSearchProvider final : public ISteamSearchProvider
-{
-	// File paths shouldn't be longer than 1048 characters.
-	// You can bump this if it causes issues.
-	uint32 MAX_PATH = 1048;
-	// we use static (S) helper (H) functions to patch up
-	// OS specific quirks related to path separators.
-	static void S_HFixDoubleSlashes( char *pStr )
-	{
-		int len = strlen( pStr );
-
-		// we check for double slashes. and patch them up.
-		for ( int i = 1; i < len - 1; i++ )
-		{
-			if ( ( pStr[i] == CORRECT_PATH_SEPARATOR ) && ( pStr[i + 1] == CORRECT_PATH_SEPARATOR ) )
-			{
-				memmove( &pStr[i], &pStr[i + 1], len - i );
-				--len;
-			}
-		}
-	}
-
-	static void S_HFixSlashes( char *pname, char separator = CORRECT_PATH_SEPARATOR )
-	{
-		// we iterate through the string until
-		// we find either a correct path separator
-		// or an incorrect path separator.
-		// Why can't we find only incorrect file separators
-		// and patch those up?
-
-		while ( *pname )
-		{
-			if ( *pname == INCORRECT_PATH_SEPARATOR || *pname == CORRECT_PATH_SEPARATOR )
-			{
-				*pname = separator;
-			}
-			pname++;
-		}
-	}
-
-	static void S_HAppendSlash( char *pStr, int strSize )
-	{
-		// we append a slash at the end of the string.
-		int len = strlen( pStr );
-		if ( len > 0 && !( pStr[len - 1] == INCORRECT_PATH_SEPARATOR || pStr[len - 1] == CORRECT_PATH_SEPARATOR ) )
-		{
-			assert( len + 1 < strSize );
-
-			pStr[len] = CORRECT_PATH_SEPARATOR;
-			pStr[len + 1] = 0;
-		}
-	}
-
-	static auto S_HRead_File( std::string_view path ) -> std::string
-	{
-		// custom read file helper for getting file contents.
-		constexpr auto read_size = std::size_t( 4096 );
-		auto stream = std::ifstream( path.data() );
-		stream.exceptions( std::ios_base::badbit );
-
-		auto out = std::string();
-		auto buf = std::string( read_size, '\0' );
-		while ( stream.read( &buf[0], read_size ) )
-		{
-			out.append( buf, 0, stream.gcount() );
-		}
-		out.append( buf, 0, stream.gcount() );
-		return out;
-	}
-
-	//Game class (thanks Scell555) retains it's own memory
-	//and deletes it when it's destructor is called.
+	// Game class (thanks Scell555) retains it's own memory
+	// and deletes it when it's destructor is called.
 	class Game
 	{
 	public:
@@ -227,6 +142,130 @@ class CFileSystemSearchProvider final : public ISteamSearchProvider
 		char *icon;
 		AppId_t appid;
 	};
+
+	virtual bool Available() const = 0;
+
+	virtual bool BIsAppInstalled( AppId_t appID ) const = 0;
+
+	virtual uint32 GetNumInstalledApps() const = 0;
+
+	virtual bool BIsSourceGame( AppId_t appID ) const = 0;
+
+	virtual uint32 GetInstalledApps( AppId_t *pvecAppID, uint32 unMaxAppIDs ) const = 0;
+
+	virtual AppId_t *GetInstalledAppsEX() const = 0;
+
+	virtual uint32 GetAppInstallDir( AppId_t appID, char *pchFolder, uint32 cchFolderBufferSize ) const = 0;
+
+	virtual Game *GetAppInstallDirEX( AppId_t appID ) const = 0;
+};
+
+class CFileSystemSearchProvider final : public ISteamSearchProvider
+{
+	// File paths shouldn't be longer than 1048 characters.
+	// You can bump this if it causes issues.
+	uint32 MAX_PATH = 1048;
+	// we use static (S) helper (H) functions to patch up
+	// OS specific quirks related to path separators.
+	static void S_HFixDoubleSlashes( char *pStr )
+	{
+		int len = strlen( pStr );
+
+		// we check for double slashes. and patch them up.
+		for ( int i = 1; i < len - 1; i++ )
+		{
+			if ( ( pStr[i] == CORRECT_PATH_SEPARATOR ) && ( pStr[i + 1] == CORRECT_PATH_SEPARATOR ) )
+			{
+				memmove( &pStr[i], &pStr[i + 1], len - i );
+				--len;
+			}
+		}
+	}
+
+	static void S_HFixDoubleSlashes( std::string &str )
+	{
+		int len = str.length();
+
+		// we check for double slashes. and patch them up.
+		for ( int i = 1; i < len - 1; i++ )
+		{
+			if ( ( str[i] == CORRECT_PATH_SEPARATOR ) && ( str[i + 1] == CORRECT_PATH_SEPARATOR ) )
+			{
+				memmove( &str[i], &str[i + 1], len - i );
+				--len;
+			}
+		}
+	}
+
+	static void S_HFixSlashes( char *pname, char separator = CORRECT_PATH_SEPARATOR )
+	{
+		// we iterate through the string until
+		// we find either a correct path separator
+		// or an incorrect path separator.
+		// Why can't we find only incorrect file separators
+		// and patch those up?
+
+		while ( *pname )
+		{
+			if ( *pname == INCORRECT_PATH_SEPARATOR || *pname == CORRECT_PATH_SEPARATOR )
+			{
+				*pname = separator;
+			}
+			pname++;
+		}
+	}
+
+	static void S_HFixSlashes( std::string &pname, char separator = CORRECT_PATH_SEPARATOR )
+	{
+		// we iterate through the string until
+		// we find either a correct path separator
+		// or an incorrect path separator.
+		// Why can't we find only incorrect file separators
+		// and patch those up?
+
+		for ( char &rChar : pname )
+		{
+			if ( rChar == INCORRECT_PATH_SEPARATOR || rChar == CORRECT_PATH_SEPARATOR )
+			{
+				rChar = separator;
+			}
+		}
+	}
+
+	static void S_HAppendSlash( char *pStr, int strSize )
+	{
+		// we append a slash at the end of the string.
+		int len = strlen( pStr );
+		if ( len > 0 && !( pStr[len - 1] == INCORRECT_PATH_SEPARATOR || pStr[len - 1] == CORRECT_PATH_SEPARATOR ) )
+		{
+			assert( len + 1 < strSize );
+
+			pStr[len] = CORRECT_PATH_SEPARATOR;
+			pStr[len + 1] = 0;
+		}
+	}
+
+	static void S_HAppendSlash( std::string &s )
+	{
+		s.append( CORRECT_PATH_SEPARATOR_S );
+	}
+
+	static auto S_HRead_File( std::string_view path ) -> std::string
+	{
+		// custom read file helper for getting file contents.
+		constexpr auto read_size = std::size_t( 4096 );
+		auto stream = std::ifstream( path.data() );
+		stream.exceptions( std::ios_base::badbit );
+
+		auto out = std::string();
+		auto buf = std::string( read_size, '\0' );
+		while ( stream.read( &buf[0], read_size ) )
+		{
+			out.append( buf, 0, stream.gcount() );
+		}
+		out.append( buf, 0, stream.gcount() );
+		return out;
+	}
 
 public:
 	CFileSystemSearchProvider()
@@ -320,9 +359,11 @@ public:
 #endif
 
 		// We get the location of the library cache location.
-		char librarycache[MAX_PATH];
-		strcpy( librarycache, steamLocation );
-		strcat( librarycache, CORRECT_PATH_SEPARATOR_S "appcache" CORRECT_PATH_SEPARATOR_S "librarycache" CORRECT_PATH_SEPARATOR_S );
+		std::string librarycache;
+		librarycache.append( steamLocation );
+		librarycache.append( CORRECT_PATH_SEPARATOR_S "appcache" CORRECT_PATH_SEPARATOR_S "librarycache" CORRECT_PATH_SEPARATOR_S );
+		//		strcpy( librarycache, steamLocation );
+		// strcat( librarycache, CORRECT_PATH_SEPARATOR_S "appcache" CORRECT_PATH_SEPARATOR_S "librarycache" CORRECT_PATH_SEPARATOR_S "\0" );
 
 		// we fix any mess-ups with folder paths, as they are OS specific and
 		// can break if not accounted for.
@@ -332,7 +373,8 @@ public:
 		// after getting the steam location, we need the libraryfolders.vdf
 		// they hold the information on what drives are used to store games
 		// you've installed.
-		strcat( steamLocation, R"(\steamapps\libraryfolders.vdf)" );
+		strcat( steamLocation, R"(\steamapps\libraryfolders.vdf)"
+							   "\0" );
 
 		// we fix any mess-ups with folder paths, as they are OS specific and
 		// can break if not accounted for.
@@ -376,14 +418,9 @@ public:
 			if ( !pathValue.string )
 				continue;
 
-			char *pathString = strdup(pathValue.string);
-
-			//strncpy( pathString, pathValue.string, pathValue.length );
-
-
-
 			// we add /steamapps and fix any mistakes if there ever were any.
-			strncat( pathString, CORRECT_PATH_SEPARATOR_S "steamapps", MAX_PATH - pathValue.length - 10 );
+			std::string pathString = std::string( pathValue.string );
+			pathString.append( CORRECT_PATH_SEPARATOR_S "steamapps" );
 			S_HFixSlashes( pathString );
 
 			// more unimplemented wine logic.
@@ -392,7 +429,7 @@ public:
 #ifdef WINE
 			if ( inWine )
 			{
-				//this is invalid.but we don't support wine anyway. char z[MAX_PATH];
+				// this is invalid.but we don't support wine anyway. char z[MAX_PATH];
 				for ( int i = 1; i < libFolders.size(); ++i ) // skip main steam install dir
 				{
 					auto &folder = libFolders[i];
@@ -404,49 +441,57 @@ public:
 			}
 #endif
 
-			if(!fs::exists(pathString)) continue;
+			// When a drive is removed but previously mounted on Steam
+			// it'll create a invalid drive mount, we check if this is
+			// the case by checking if the path leads anywhere.
+			if ( !fs::exists( ( pathString ) ) )
+			{
+				continue;
+			}
 
 			// We iterate through the entire directory in search of app manifest files. which hold the app id.
 			// We also store the path to this file.
 			// We now get the actual installed games and their Steam App ID (AppId_t)
-			for ( auto const &dir_entry : fs::directory_iterator( (char *)pathString, fs::directory_options::skip_permission_denied ))
+			for ( auto const &dir_entry : fs::directory_iterator( ( pathString ), fs::directory_options::skip_permission_denied ) )
 			{
 				// pathString falls out of scope the moment the constructor ends.
 				// So we put it onto the heap and store that in Games.
 				// This'll later be destroyed by the Game class's destructor.
-//				char *path = strdup(pathString);//new char[MAX_PATH];
-//				sapp_strlcpy( path, pathString, MAX_PATH );
 				auto strPath = dir_entry.path().string();
+
 				auto indd = strPath.find( "appmanifest_" );
 				auto indd2 = strPath.rfind( ".acf" );
 				if ( ( indd <= strPath.length() ) && ( indd2 <= strPath.length() ) )
 				{
-					auto pathFile = S_HRead_File( strPath );
+					// We read the app manifest and get 4 components:
+					// The game's name.
+					// The game's appid.
+					// The game's install directory.
+					// Additionally, we store the library path to where
+					// the game is housed, as well as the path to
+					// the game's icon, which is stored in the
+					// app cache used by steam.
+					auto pathFile = S_HRead_File( std::string( strPath ) );
 					KeyValueRoot appManifest = KeyValueRoot( pathFile.c_str() );
+
+					if ( !appManifest.IsValid() )
+						return;
 
 					KeyValue &appState = appManifest["AppState"];
 
+					// We don't own any of these, but Game will copy them
+					// and claim ownership of the copy until destroyed.
 					auto keyName = appState["name"].Value().string;
-					//					char name[keyName.length + 1];
-					//					sapp_strlcpy( name, keyName.string, keyName.length + 1 );
-
 					auto keyInstallDir = appState["installdir"].Value().string;
-					//					char installDir[keyInstallDir.length + 1];
-					//					sapp_strlcpy( installDir, keyInstallDir.string, keyInstallDir.length + 1 );
-
 					auto appid = appState["appid"].Value().string;
 
-					char icon[strlen( librarycache ) + appState["appid"].Value().length + 10];
-					strcpy( icon, librarycache );
-					strcat( icon, appid );
-					strcat( icon, "_icon.jpg" );
+					std::string icon( librarycache );
+					icon.append( appid );
+					icon.append( "_icon.jpg" );
 
-					games.push_back( Game { keyName, pathString, keyInstallDir , icon, static_cast<AppId_t>( atoi( strPath.substr( ( indd + 12 ), indd2 - ( indd + 12 ) ).c_str() ) ) } );
+					games.push_back( Game { keyName, pathString.c_str(), keyInstallDir, icon.c_str(), static_cast<AppId_t>( atoi( appid ) ) } );
 				}
 			}
-
-			// We clean up pathString;
-			//free(pathString);
 		}
 
 		// We then sort the games.
@@ -510,52 +555,6 @@ public:
 		// we then format the path,
 		// correct file separator,
 		//  and appID into the correct places to get the app manifest.
-//		auto formattedName = fmt::format( "{0}{1}appmanifest_{2}.acf", game->library, CORRECT_PATH_SEPARATOR, appID );
-//		auto fileContents = S_HRead_File( formattedName );
-
-		// we then parse it with SpeedyKeyV.
-//		KeyValueRoot file = KeyValueRoot( fileContents.c_str() );
-
-		// first we check for errors, any parsing errors and we won't be able
-		// to use the data in the file and are forced to return.
-//		if ( !file.IsValid() )
-//			return 0;
-
-		// we solidify the file, as we only need to read from it.
-		// this makes it faster, and reduces memory usage.
-//		file.Solidify();
-
-		// we get the install directory.
-		// Append /common/ to it.
-		// And then append the install directory to it afterwards.
-//		auto fileDir = file["AppState"]["installdir"].Value();
-//		auto fileValue = fileDir.string;
-//		auto fileLength = fileDir.length;
-
-
-		strncpy( pchFolder, game->library, cchFolderBufferSize );
-		strncat( pchFolder, CORRECT_PATH_SEPARATOR_S "common" CORRECT_PATH_SEPARATOR_S, cchFolderBufferSize - 8 );
-		strncat( pchFolder, game->installDir, cchFolderBufferSize - strlen(game->installDir) - 8 );
-		S_HAppendSlash( pchFolder, cchFolderBufferSize - strlen(game->installDir) - 9 );
-		S_HFixSlashes( pchFolder );
-		return true; // fix if need len
-	}
-
-	Game* GetAppInstallDirEX( AppId_t appID ) const
-	{
-		// We check if the game exists and will return
-		// if it doesn't. We can't call BIsAppInstalled because
-		// we need the iterator result.
-		const auto game = std::find_if( games.begin(), games.end(), [appID]( const Game &g )
-										{
-											return g.appid == appID;
-										} );
-		if ( games.end() == game )
-			return nullptr;
-
-		// we then format the path,
-		// correct file separator,
-		//  and appID into the correct places to get the app manifest.
 		//		auto formattedName = fmt::format( "{0}{1}appmanifest_{2}.acf", game->library, CORRECT_PATH_SEPARATOR, appID );
 		//		auto fileContents = S_HRead_File( formattedName );
 
@@ -578,16 +577,30 @@ public:
 		//		auto fileValue = fileDir.string;
 		//		auto fileLength = fileDir.length;
 
-		auto pgb = game.base();
-		auto pgame = new Game(*pgb);
-//		strncpy( pchFolder, game->library, cchFolderBufferSize );
-//		strncat( pchFolder, CORRECT_PATH_SEPARATOR_S "common" CORRECT_PATH_SEPARATOR_S, cchFolderBufferSize - 8 );
-//		strncat( pchFolder, game->installDir, cchFolderBufferSize - strlen(game->installDir) - 8 );
-//		S_HAppendSlash( pchFolder, cchFolderBufferSize - strlen(game->installDir) - 9 );
-//		S_HFixSlashes( pchFolder );
-		return pgame; // fix if need len
+		strncpy( pchFolder, game->library, cchFolderBufferSize );
+		strncat( pchFolder, CORRECT_PATH_SEPARATOR_S "common" CORRECT_PATH_SEPARATOR_S, cchFolderBufferSize - 8 );
+		strncat( pchFolder, game->installDir, cchFolderBufferSize - strlen( game->installDir ) - 8 );
+		S_HAppendSlash( pchFolder, cchFolderBufferSize - strlen( game->installDir ) - 9 );
+		S_HFixSlashes( pchFolder );
+		return true; // fix if need len
 	}
 
+	Game *GetAppInstallDirEX( AppId_t appID ) const override
+	{
+		// We check if the game exists and will return
+		// if it doesn't. We can't call BIsAppInstalled because
+		// we need the iterator result.
+		const auto game = std::find_if( games.begin(), games.end(), [appID]( const Game &g )
+										{
+											return g.appid == appID;
+										} );
+		if ( games.end() == game )
+			return nullptr;
+
+		auto pgb = game.base();
+		auto pgame = new Game( *pgb );
+		return pgame; // fix if need len
+	}
 
 	uint32 GetNumInstalledApps() const override
 	{
@@ -602,20 +615,21 @@ public:
 		// unless unMaxAppIDs is smaller than the games vector.
 		// this is terrible. But it's the way the valve function
 		// works so we'll do it as well.
+		// Use GetInstalledAppsEX for more modern implementation.
 		for ( int i = 0; i < unMaxAppIDs && i < games.size(); i++ )
 			pvecAppID[i] = games.at( i ).appid;
 		return unMaxAppIDs <= games.size() ? unMaxAppIDs : games.size();
 	}
 
-	AppId_t* GetInstalledAppsEX() const
+	AppId_t *GetInstalledAppsEX() const override
 	{
 		// This returns a new array of appids.
 		// The user owns this array and it's the length of the games vector.
 		// you can use GetNumInstalledApps to get the length.
-		AppId_t* pvecAppID = new AppId_t[GetNumInstalledApps()];
+		AppId_t *pvecAppID = new AppId_t[GetNumInstalledApps()];
 		for ( int i = 0; i < games.size(); i++ )
 			pvecAppID[i] = games.at( i ).appid;
-		return  pvecAppID;
+		return pvecAppID;
 	}
 
 private:
