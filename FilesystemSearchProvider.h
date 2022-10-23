@@ -30,6 +30,7 @@
 //whilst POSIX uses /
 
 #ifdef _WIN32
+#include <windows.h>
 #define CORRECT_PATH_SEPARATOR	 '\\'
 #define INCORRECT_PATH_SEPARATOR '/'
 #elif POSIX
@@ -164,7 +165,7 @@ class CFileSystemSearchProvider final : public ISteamSearchProvider
 {
 	// File paths shouldn't be longer than 1048 characters.
 	// You can bump this if it causes issues.
-	uint32 MAX_PATH = 1048;
+	uint32 SAPP_MAX_PATH = 1048;
 	// we use static (S) helper (H) functions to patch up
 	// OS specific quirks related to path separators.
 	static void S_HFixDoubleSlashes( char *pStr )
@@ -326,7 +327,7 @@ public:
 #endif
 #else
 		// We get the location where Steam is installed.
-		char steamLocation[MAX_PATH * 2];
+		char steamLocation[SAPP_MAX_PATH * 2];
 		{
 			const char *pHome = getenv( "HOME" );
 			sprintf( steamLocation, "%s/.steam/steam", pHome );
@@ -519,9 +520,9 @@ public:
 		// We get the game install path and check it recursively until
 		// we find a gameinfo.txt file or we'll return false if it isn't
 		// there.
-		char dirPath[MAX_PATH];
-		GetAppInstallDir( appID, dirPath, MAX_PATH );
-		for ( auto const &dir_entry : fs::recursive_directory_iterator { fs::path( dirPath ), std::filesystem::directory_options::skip_permission_denied } )
+		char dirPath[SAPP_MAX_PATH];
+		GetAppInstallDir( appID, dirPath, SAPP_MAX_PATH );
+		for ( auto const &dir_entry : std::filesystem::recursive_directory_iterator { std::string( dirPath ), std::filesystem::directory_options::skip_permission_denied } )
 		{
 			if ( !dir_entry.is_directory() && dir_entry.path().string().find( "gameinfo.txt" ) != std::string::npos )
 				return true;
