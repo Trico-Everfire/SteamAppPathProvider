@@ -520,13 +520,22 @@ public:
 		// We get the game install path and check it recursively until
 		// we find a gameinfo.txt file or we'll return false if it isn't
 		// there.
-		char dirPath[SAPP_MAX_PATH];
+
+		if(!BIsAppInstalled(appID))
+			return false;
+
+		char* dirPath = new char[SAPP_MAX_PATH];
 		GetAppInstallDir( appID, dirPath, SAPP_MAX_PATH );
+
 		for ( auto const &dir_entry : std::filesystem::recursive_directory_iterator { std::string( dirPath ), std::filesystem::directory_options::skip_permission_denied } )
 		{
 			if ( !dir_entry.is_directory() && dir_entry.path().string().find( "gameinfo.txt" ) != std::string::npos )
+			{
+				delete[] dirPath;
 				return true;
+			}
 		}
+		delete[] dirPath;
 		return false;
 	}
 
@@ -552,31 +561,6 @@ public:
 										} );
 		if ( games.end() == game )
 			return false;
-
-		// we then format the path,
-		// correct file separator,
-		//  and appID into the correct places to get the app manifest.
-		//		auto formattedName = fmt::format( "{0}{1}appmanifest_{2}.acf", game->library, CORRECT_PATH_SEPARATOR, appID );
-		//		auto fileContents = S_HRead_File( formattedName );
-
-		// we then parse it with SpeedyKeyV.
-		//		KeyValueRoot file = KeyValueRoot( fileContents.c_str() );
-
-		// first we check for errors, any parsing errors and we won't be able
-		// to use the data in the file and are forced to return.
-		//		if ( !file.IsValid() )
-		//			return 0;
-
-		// we solidify the file, as we only need to read from it.
-		// this makes it faster, and reduces memory usage.
-		//		file.Solidify();
-
-		// we get the install directory.
-		// Append /common/ to it.
-		// And then append the install directory to it afterwards.
-		//		auto fileDir = file["AppState"]["installdir"].Value();
-		//		auto fileValue = fileDir.string;
-		//		auto fileLength = fileDir.length;
 
 		strncpy( pchFolder, game->library, cchFolderBufferSize );
 		strncat( pchFolder, CORRECT_PATH_SEPARATOR_S "common" CORRECT_PATH_SEPARATOR_S, cchFolderBufferSize - 8 );
