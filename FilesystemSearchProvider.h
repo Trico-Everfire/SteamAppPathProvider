@@ -581,9 +581,8 @@ public:
 										} );
 		if ( games.end() == game )
 			return nullptr;
-
-		auto pgb = game.base();
-		auto pgame = new Game( *pgb );
+		
+		auto pgame = new Game( *game );
 		return pgame; // fix if need len
 	}
 
