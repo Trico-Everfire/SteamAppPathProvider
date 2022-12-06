@@ -26,7 +26,7 @@
 #endif
 
 // windows and POSIX have different
-//          path separators, windows uses \
+//           path separators, windows uses \
 //whilst POSIX uses /
 
 #ifdef _WIN32
@@ -406,7 +406,6 @@ public:
 			const char *name = folder.Key().string;
 			if ( !strcmp( name, "TimeNextStatsReport" ) || !strcmp( name, "ContentStatsID" ) )
 				continue;
-
 			// We get the path to the drive locations where
 			// steam games are installed.
 			// There are 2 formats for this.
@@ -446,9 +445,7 @@ public:
 			// it'll create a invalid drive mount, we check if this is
 			// the case by checking if the path leads anywhere.
 			if ( !fs::exists( ( pathString ) ) )
-			{
 				continue;
-			}
 
 			// We iterate through the entire directory in search of app manifest files. which hold the app id.
 			// We also store the path to this file.
@@ -459,6 +456,9 @@ public:
 				// So we put it onto the heap and store that in Games.
 				// This'll later be destroyed by the Game class's destructor.
 				auto strPath = dir_entry.path().string();
+
+				if ( !fs::exists( ( strPath ) ) )
+					continue;
 
 				auto indd = strPath.find( "appmanifest_" );
 				auto indd2 = strPath.rfind( ".acf" );
@@ -479,6 +479,9 @@ public:
 						return;
 
 					KeyValue &appState = appManifest["AppState"];
+
+					if ( appState["name"].Value().string == nullptr )
+						continue;
 
 					// We don't own any of these, but Game will copy them
 					// and claim ownership of the copy until destroyed.
@@ -521,10 +524,10 @@ public:
 		// we find a gameinfo.txt file or we'll return false if it isn't
 		// there.
 
-		if(!BIsAppInstalled(appID))
+		if ( !BIsAppInstalled( appID ) )
 			return false;
 
-		char* dirPath = new char[SAPP_MAX_PATH];
+		char *dirPath = new char[SAPP_MAX_PATH];
 		GetAppInstallDir( appID, dirPath, SAPP_MAX_PATH );
 
 		for ( auto const &dir_entry : std::filesystem::recursive_directory_iterator { std::string( dirPath ), std::filesystem::directory_options::skip_permission_denied } )
@@ -581,7 +584,7 @@ public:
 										} );
 		if ( games.end() == game )
 			return nullptr;
-		
+
 		auto pgame = new Game( *game );
 		return pgame; // fix if need len
 	}
