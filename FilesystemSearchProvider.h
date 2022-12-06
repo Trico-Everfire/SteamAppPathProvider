@@ -626,4 +626,3 @@ private:
 };
 
 #endif // SAPP_FILESYSTEMSEARCHPROVIDER_H
-
