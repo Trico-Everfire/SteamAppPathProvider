@@ -11,7 +11,6 @@
 #include "KeyValue.h"
 
 #include <filesystem>
-#include <fmt/core.h>
 #include <fstream>
 #include <iostream>
 #include <vector>
