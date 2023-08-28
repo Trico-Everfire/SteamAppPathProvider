@@ -1,1 +1,7 @@
-libs/
+# IDEs
+.idea/
+.vs/
+.vscode/
+
+# CMake
+cmake-build-*/
