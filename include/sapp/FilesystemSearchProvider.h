@@ -29,7 +29,7 @@
 //whilst POSIX uses /
 
 #ifdef _WIN32
-#include <windows.h>
+#include <Windows.h>
 #define CORRECT_PATH_SEPARATOR	 '\\'
 #define INCORRECT_PATH_SEPARATOR '/'
 #elif POSIX
@@ -521,8 +521,8 @@ public:
 
 	bool BIsSourceGame( AppId_t appID ) const override
 	{
-		// We get the game install path and check it recursively until
-		// we find a gameinfo.txt file or we'll return false if it isn't
+		// We get the game install path and check each subdirectory until
+		// we find a gameinfo.txt file, or we'll return false if it isn't
 		// there.
 
 		if ( !BIsAppInstalled( appID ) )
@@ -531,9 +531,15 @@ public:
 		char *dirPath = new char[SAPP_MAX_PATH];
 		GetAppInstallDir( appID, dirPath, SAPP_MAX_PATH );
 
-		for ( auto const &dir_entry : std::filesystem::recursive_directory_iterator { std::string( dirPath ), std::filesystem::directory_options::skip_permission_denied } )
+        if ( !std::filesystem::exists( dirPath ) )
+        {
+            delete[] dirPath;
+            return false;
+        }
+
+		for ( auto const &dir_entry : std::filesystem::directory_iterator { std::string( dirPath ), std::filesystem::directory_options::skip_permission_denied } )
 		{
-			if ( !dir_entry.is_directory() && dir_entry.path().string().find( "gameinfo.txt" ) != std::string::npos )
+			if ( dir_entry.is_directory() && std::filesystem::exists( dir_entry.path() / "gameinfo.txt" ) )
 			{
 				delete[] dirPath;
 				return true;
@@ -545,8 +551,8 @@ public:
 
     bool BIsSource2Game( AppId_t appID ) const override
     {
-        // We get the game install path and check it recursively until
-        // we find a gameinfo.gi file or we'll return false if it isn't
+        // We get the game install path and check each subdirectory until
+        // we find a gameinfo.gi file, or we'll return false if it isn't
         // there.
 
         if ( !BIsAppInstalled( appID ) )
@@ -555,9 +561,15 @@ public:
         char *dirPath = new char[SAPP_MAX_PATH];
         GetAppInstallDir( appID, dirPath, SAPP_MAX_PATH );
 
-        for ( auto const &dir_entry : std::filesystem::recursive_directory_iterator { std::string( dirPath ), std::filesystem::directory_options::skip_permission_denied } )
+        if ( !std::filesystem::exists( dirPath ) )
         {
-            if ( !dir_entry.is_directory() && dir_entry.path().string().find( "gameinfo.gi" ) != std::string::npos )
+            delete[] dirPath;
+            return false;
+        }
+
+        for ( auto const &dir_entry : std::filesystem::directory_iterator { std::string( dirPath ), std::filesystem::directory_options::skip_permission_denied } )
+        {
+            if ( dir_entry.is_directory() && std::filesystem::exists( dir_entry.path() / "gameinfo.gi" ) )
             {
                 delete[] dirPath;
                 return true;
