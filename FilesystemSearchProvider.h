@@ -151,6 +151,8 @@ public:
 
 	virtual bool BIsSourceGame( AppId_t appID ) const = 0;
 
+    virtual bool BIsSource2Game( AppId_t appID ) const = 0;
+
 	virtual uint32 GetInstalledApps( AppId_t *pvecAppID, uint32 unMaxAppIDs ) const = 0;
 
 	virtual AppId_t *GetInstalledAppsEX() const = 0;
@@ -540,6 +542,30 @@ public:
 		delete[] dirPath;
 		return false;
 	}
+
+    bool BIsSource2Game( AppId_t appID ) const override
+    {
+        // We get the game install path and check it recursively until
+        // we find a gameinfo.gi file or we'll return false if it isn't
+        // there.
+
+        if ( !BIsAppInstalled( appID ) )
+            return false;
+
+        char *dirPath = new char[SAPP_MAX_PATH];
+        GetAppInstallDir( appID, dirPath, SAPP_MAX_PATH );
+
+        for ( auto const &dir_entry : std::filesystem::recursive_directory_iterator { std::string( dirPath ), std::filesystem::directory_options::skip_permission_denied } )
+        {
+            if ( !dir_entry.is_directory() && dir_entry.path().string().find( "gameinfo.gi" ) != std::string::npos )
+            {
+                delete[] dirPath;
+                return true;
+            }
+        }
+        delete[] dirPath;
+        return false;
+    }
 
 	bool BIsAppInstalled( AppId_t appID ) const override
 	{
