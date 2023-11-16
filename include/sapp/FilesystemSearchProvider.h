@@ -403,7 +403,7 @@ public:
 		auto &libKeyValue = libFolder["libraryfolders"];
 		for ( int i = 0; i < libKeyValue.ChildCount(); i++ )
 		{
-			KeyValue &folder = libKeyValue.Get( i );
+			KeyValue &folder = libKeyValue.At( i );
 			const char *name = folder.Key().string;
 			if ( !strcmp( name, "TimeNextStatsReport" ) || !strcmp( name, "ContentStatsID" ) )
 				continue;
