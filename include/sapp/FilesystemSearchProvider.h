@@ -569,10 +569,22 @@ public:
 
         for ( auto const &dir_entry : std::filesystem::directory_iterator { std::string( dirPath ), std::filesystem::directory_options::skip_permission_denied } )
         {
-            if ( dir_entry.is_directory() && std::filesystem::exists( dir_entry.path() / "gameinfo.gi" ) )
+            if ( !dir_entry.is_directory() )
+            {
+                continue;
+            }
+            if ( std::filesystem::exists( dir_entry.path() / "gameinfo.gi" ) )
             {
                 delete[] dirPath;
                 return true;
+            }
+            for ( auto const &subdir_entry : std::filesystem::directory_iterator { dir_entry.path(), std::filesystem::directory_options::skip_permission_denied } )
+            {
+                if ( subdir_entry.is_directory() && std::filesystem::exists( subdir_entry.path() / "gameinfo.gi" ) )
+                {
+                    delete[] dirPath;
+                    return true;
+                }
             }
         }
         delete[] dirPath;
