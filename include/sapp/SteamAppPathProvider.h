@@ -5,10 +5,6 @@
 #include <unordered_set>
 #include "KeyValue.h"
 
-#ifdef __APPLE__
-#error "MAC OS NOT SUPPORTED"
-#endif
-
 #if defined( __GNUC__ ) && !defined( _WIN32 ) && !defined( POSIX )
 #if __GNUC__ < 4
 #error "SAPP requires GCC 4.X or greater."
@@ -178,7 +174,11 @@ public:
         steamLocation.reserve(SAPP_MAX_PATH * 2);
         {
             std::string pHome = getenv( "HOME" );
+#ifdef __APPLE__
+            steamLocation.append(pHome + "/Library/Application Support/Steam");
+#else
             steamLocation.append(pHome + "/.steam/steam");
+#endif
         }
 
         std::error_code c;
