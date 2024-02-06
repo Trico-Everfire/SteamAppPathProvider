@@ -11,21 +11,21 @@ char SLASH;
 
 //Caching only has impact on source engine game fetches, we don't do tests for SAPP usages that don't use it.
 TEST(SAPP, searchForInstalledGames) {
-    CFileSystemSearchProvider provider;
+    SteamAppPathProvider provider;
     ASSERT_TRUE(provider.Available());
 
     auto installedSteamAppCount = provider.GetNumInstalledApps();
     std::unique_ptr<uint32_t[]> steamAppIDs(provider.GetInstalledAppsEX());
 
     for (int i = 0; i < installedSteamAppCount; i++) {
-        std::unique_ptr<CFileSystemSearchProvider::Game> steamGameInfo(provider.GetAppInstallDirEX(steamAppIDs[i]));
+        std::unique_ptr<SteamAppPathProvider::Game> steamGameInfo(provider.GetAppInstallDirEX(steamAppIDs[i]));
         std::cout << steamAppIDs[i] << ": " << steamGameInfo->library << SLASH << "common" << SLASH << steamGameInfo->installDir << std::endl;
     }
 }
 
 TEST(SAPP, searchForSourceGamesCached) {
     constexpr bool cacheSource = true;
-    CFileSystemSearchProvider provider{cacheSource, cacheSource};
+    SteamAppPathProvider provider{cacheSource, cacheSource};
     ASSERT_TRUE(provider.Available());
 
     auto installedSteamAppCount = provider.GetNumInstalledApps();
@@ -35,14 +35,14 @@ TEST(SAPP, searchForSourceGamesCached) {
         if (!(provider.BIsSourceGame(steamAppIDs[i]) || provider.BIsSource2Game(steamAppIDs[i])))
             continue;
 
-        std::unique_ptr<CFileSystemSearchProvider::Game> steamGameInfo(provider.GetAppInstallDirEX(steamAppIDs[i]));
+        std::unique_ptr<SteamAppPathProvider::Game> steamGameInfo(provider.GetAppInstallDirEX(steamAppIDs[i]));
         std::cout << steamAppIDs[i] << ": " << steamGameInfo->library << SLASH << "common" << SLASH << steamGameInfo->installDir << " " << (provider.BIsSourceGame(steamAppIDs[i]) ? 1: 2) << std::endl;
     }
 }
 
 TEST(SAPP, searchForSourceGamesUncached) {
     constexpr bool cacheSource = false;
-    CFileSystemSearchProvider provider{cacheSource, cacheSource};
+    SteamAppPathProvider provider{cacheSource, cacheSource};
     ASSERT_TRUE(provider.Available());
 
     auto installedSteamAppCount = provider.GetNumInstalledApps();
@@ -52,14 +52,14 @@ TEST(SAPP, searchForSourceGamesUncached) {
         if (!(provider.BIsSourceGame(steamAppIDs[i]) || provider.BIsSource2Game(steamAppIDs[i])))
             continue;
 
-        std::unique_ptr<CFileSystemSearchProvider::Game> steamGameInfo(provider.GetAppInstallDirEX(steamAppIDs[i]));
+        std::unique_ptr<SteamAppPathProvider::Game> steamGameInfo(provider.GetAppInstallDirEX(steamAppIDs[i]));
         std::cout << steamAppIDs[i] << ": " << steamGameInfo->library << SLASH << "common" << SLASH << steamGameInfo->installDir << " " << (provider.BIsSourceGame(steamAppIDs[i]) ? 1: 2) << std::endl;
     }
 }
 
 TEST(SAPP, searchForSourceGamesCachedStressTest) {
     constexpr bool cacheSource = true;
-    CFileSystemSearchProvider provider{cacheSource, cacheSource};
+    SteamAppPathProvider provider{cacheSource, cacheSource};
     ASSERT_TRUE(provider.Available());
 
     auto installedSteamAppCount = provider.GetNumInstalledApps();
@@ -72,7 +72,7 @@ TEST(SAPP, searchForSourceGamesCachedStressTest) {
             if (!(provider.BIsSourceGame(steamAppIDs[i]) || provider.BIsSource2Game(steamAppIDs[i])))
                 continue;
 
-            std::unique_ptr<CFileSystemSearchProvider::Game> steamGameInfo(provider.GetAppInstallDirEX(steamAppIDs[i]));
+            std::unique_ptr<SteamAppPathProvider::Game> steamGameInfo(provider.GetAppInstallDirEX(steamAppIDs[i]));
             std::cout << steamAppIDs[i] << ": " << steamGameInfo->library << SLASH << "common" << SLASH << steamGameInfo->installDir << " " << (provider.BIsSourceGame(steamAppIDs[i]) ? 1: 2) << std::endl;
         }
     }
@@ -80,7 +80,7 @@ TEST(SAPP, searchForSourceGamesCachedStressTest) {
 
 TEST(SAPP, searchForSourceGamesUncachedStressTest) {
     constexpr bool cacheSource = false;
-    CFileSystemSearchProvider provider{cacheSource, cacheSource};
+    SteamAppPathProvider provider{cacheSource, cacheSource};
     ASSERT_TRUE(provider.Available());
 
     auto installedSteamAppCount = provider.GetNumInstalledApps();
@@ -93,7 +93,7 @@ TEST(SAPP, searchForSourceGamesUncachedStressTest) {
             if (!(provider.BIsSourceGame(steamAppIDs[i]) || provider.BIsSource2Game(steamAppIDs[i])))
                 continue;
 
-            std::unique_ptr<CFileSystemSearchProvider::Game> steamGameInfo(provider.GetAppInstallDirEX(steamAppIDs[i]));
+            std::unique_ptr<SteamAppPathProvider::Game> steamGameInfo(provider.GetAppInstallDirEX(steamAppIDs[i]));
             std::cout << steamAppIDs[i] << ": " << steamGameInfo->library << SLASH << "common" << SLASH << steamGameInfo->installDir << " " << (provider.BIsSourceGame(steamAppIDs[i]) ? 1: 2) << std::endl;
         }
     }

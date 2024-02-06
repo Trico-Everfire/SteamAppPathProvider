@@ -148,10 +148,10 @@ public:
 
 };
 
-class CFileSystemSearchProvider final : public ISteamSearchProvider
+class SteamAppPathProvider final : public ISteamSearchProvider
 {
 public:
-    explicit CFileSystemSearchProvider(bool shouldPrecacheSourceGames = false, bool shouldPrecacheSource2Games = false)
+    explicit SteamAppPathProvider(bool shouldPrecacheSourceGames = false, bool shouldPrecacheSource2Games = false)
     {
         precacheSourceGames = shouldPrecacheSourceGames;
         precacheSource2Games = shouldPrecacheSource2Games;
