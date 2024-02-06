@@ -80,11 +80,11 @@ public:
 
         Game( Game &&game )
  noexcept         {
-            gameName = std::exchange( game.gameName, "" );
-            library = std::exchange( game.library, "" );
-            installDir = std::exchange( game.installDir, "" );
-            icon = std::exchange( game.icon, "" );
-            appid = std::exchange( game.appid, 0 );
+            gameName = std::move( game.gameName );
+            library = std::move( game.library );
+            installDir = std::move( game.installDir );
+            icon = std::move( game.icon );
+            appid = game.appid;
         }
 
         Game &operator=( const Game &game )
