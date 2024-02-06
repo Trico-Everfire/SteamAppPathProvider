@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.15)
 project(SAPP)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
+
 include(GNUInstallDirs)
 
 add_library(${PROJECT_NAME} INTERFACE)
 target_sources(${PROJECT_NAME} INTERFACE
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/sapp/FilesystemSearchProvider.h>")
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/sapp/SteamAppPathProvider.h>")
 target_include_directories(${PROJECT_NAME} INTERFACE "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include>")
 target_link_libraries(${PROJECT_NAME} INTERFACE keyvalues)
 
