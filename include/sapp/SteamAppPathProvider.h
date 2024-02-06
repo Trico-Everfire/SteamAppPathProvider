@@ -5,6 +5,10 @@
 #include <unordered_set>
 #include "KeyValue.h"
 
+#ifdef __APPLE__
+#error "MAC OS NOT SUPPORTED"
+#endif
+
 #if defined( __GNUC__ ) && !defined( _WIN32 ) && !defined( POSIX )
 #if __GNUC__ < 4
 #error "SAPP requires GCC 4.X or greater."
@@ -155,7 +159,7 @@ public:
     {
         precacheSourceGames = shouldPrecacheSourceGames;
         precacheSource2Games = shouldPrecacheSource2Games;
-#ifdef WIN32
+#ifdef _WIN32
         std::string steamLocation;
         steamLocation.resize(SAPP_MAX_PATH * 2);
 
@@ -307,7 +311,7 @@ public:
 
         std::sort( games.begin(), games.end(), [&]( const Game &a, const Game &b )
         {
-            return int( a.appid ) < int( b.appid );
+            return a.appid < b.appid;
         } );
     }
 
