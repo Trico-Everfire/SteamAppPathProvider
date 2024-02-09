@@ -39,8 +39,8 @@ class ISteamSearchProvider
 {
 
 protected:
-    std::set<AppId_t> sourceGames;
-    std::set<AppId_t> source2Games;
+    std::unordered_set<AppId_t> sourceGames;
+    std::unordered_set<AppId_t> source2Games;
     bool precacheSourceGames = false;
     bool precacheSource2Games = false;
 
