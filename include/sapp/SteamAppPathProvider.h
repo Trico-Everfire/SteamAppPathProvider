@@ -156,18 +156,18 @@ public:
         precacheSourceGames = shouldPrecacheSourceGames;
         precacheSource2Games = shouldPrecacheSource2Games;
 #ifdef _WIN32
-        std::string steamLocation;
-        steamLocation.resize(SAPP_MAX_PATH * 2);
+        char steamLocationData[SAPP_MAX_PATH * 2];
 
         HKEY steam;
         if ( RegOpenKeyExA( HKEY_LOCAL_MACHINE, R"(SOFTWARE\Valve\Steam)", 0, KEY_QUERY_VALUE | KEY_WOW64_32KEY, &steam ) != ERROR_SUCCESS )
             return;
 
-        DWORD dwSize = SAPP_MAX_PATH * 2;
-        if ( RegQueryValueExA( steam, "InstallPath", nullptr, nullptr, (LPBYTE)steamLocation.data(), &dwSize ) != ERROR_SUCCESS )
+        DWORD dwSize = sizeof(steamLocationData);
+        if ( RegQueryValueExA( steam, "InstallPath", nullptr, nullptr, (LPBYTE)steamLocationData, &dwSize ) != ERROR_SUCCESS )
             return;
 
         RegCloseKey( steam );
+        std::string steamLocation{ steamLocationData };
 
 #else
         std::string steamLocation;
