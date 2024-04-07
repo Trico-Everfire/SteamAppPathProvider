@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <unordered_set>
 #include <vector>
+#include <algorithm>
 #include <cstring>
 #include "KeyValue.h"
 
