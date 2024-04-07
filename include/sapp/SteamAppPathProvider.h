@@ -3,6 +3,8 @@
 #include <fstream>
 #include <filesystem>
 #include <unordered_set>
+#include <vector>
+#include <cstring>
 #include "KeyValue.h"
 
 #if defined( __GNUC__ ) && !defined( _WIN32 ) && !defined( POSIX )
