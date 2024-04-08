@@ -4,23 +4,25 @@ set(CMAKE_CXX_STANDARD 23)
 
 include(GNUInstallDirs)
 
-add_library(${PROJECT_NAME} INTERFACE)
-target_sources(${PROJECT_NAME} INTERFACE
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/sapp/SteamAppPathProvider.h>")
-target_include_directories(${PROJECT_NAME} INTERFACE "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include>")
-target_link_libraries(${PROJECT_NAME} INTERFACE keyvalues)
+add_library(${PROJECT_NAME} STATIC "${CMAKE_CURRENT_LIST_DIR}/include/sapp/SteamAppPathProvider.h")
+target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include/")
 
 option(SAPP_BUILD_TESTS "Build tests for SAPP" OFF)
-if(SAPP_BUILD_TESTS)
-    include(FetchContent)
 
+option(SAPP_INCLUDE_SPEEDY "fetch content of SpeedyKeyV" ON)
+
+if(SAPP_BUILD_TESTS OR SAPP_BUILD_TESTS)
+    include(FetchContent)
     # SpeedyKeyV
     FetchContent_Declare(
             keyvalues
             GIT_REPOSITORY https://github.com/ozxybox/SpeedyKeyV.git
             GIT_TAG master)
     FetchContent_MakeAvailable(keyvalues)
+endif ()
 
+if(SAPP_BUILD_TESTS)
+    set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
     # Google Test
     FetchContent_Declare(
             googletest

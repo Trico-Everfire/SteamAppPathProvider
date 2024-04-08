@@ -32,11 +32,13 @@
 #define INCORRECT_PATH_SEPARATOR_S "\\"
 #endif
 
-#define SAPP_MAX_PATH 1048
+#define SAPP_MAX_PATH 4096
 
 typedef unsigned int AppId_t, uint32;
 
 namespace fs = std::filesystem;
+
+class SteamAppPathProvider;
 
 class ISteamSearchProvider
 {
@@ -49,8 +51,7 @@ protected:
 
     static auto SappFileHelper(std::string_view path ) -> std::string
     {
-        // custom read file helper for getting file contents.
-        constexpr auto read_size = std::size_t( 4096 );
+        constexpr auto read_size = std::size_t( SAPP_MAX_PATH );
         auto stream = std::ifstream( path.data() );
         stream.exceptions( std::ios_base::badbit );
 
@@ -64,20 +65,25 @@ protected:
         return out;
     }
 
+
 public:
     virtual ~ISteamSearchProvider() = default;
 
     class Game
     {
+
+        friend SteamAppPathProvider; 
+
     public:
+
         ~Game() = default;
 
         Game( const Game &game )
         {
-            gameName =  game.gameName ;
-            library =  game.library ;
-            installDir =  game.installDir ;
-            icon =  game.icon ;
+            gameName = game.gameName ;
+            library = game.library ;
+            installDir = game.installDir ;
+            icon = game.icon ;
             appid = game.appid;
         }
 
@@ -94,10 +100,10 @@ public:
         {
             if ( &game == this )
                 return *this;
-            gameName =  game.gameName;
-            library =  game.library;
-            installDir =  game.installDir;
-            icon =  game.icon;
+            gameName = (game.gameName);
+            library = game.library;
+            installDir = game.installDir;
+            icon = game.icon;
             appid = game.appid;
             return *this;
         }
@@ -107,10 +113,10 @@ public:
             if ( &game == this )
                 return *this;
 
-            gameName =  game.gameName;
-            library =  game.library;
-            installDir =  game.installDir;
-            icon =  game.icon;
+            gameName = std::move(game.gameName);
+            library = std::move(game.library);
+            installDir = std::move(game.installDir);
+            icon = std::move(game.icon);
             appid = game.appid;
             return *this;
         }
@@ -143,11 +149,13 @@ public:
 
     virtual uint32 GetInstalledApps(AppId_t *appids, uint32 unMaxAppIDs ) const = 0;
 
+    virtual void sortGames(bool toGreater) = 0;
+
     [[nodiscard]] virtual AppId_t *GetInstalledAppsEX() const = 0;
 
-    virtual bool GetAppInstallDir(AppId_t appID, std::string &pchFolder, uint32 cchFolderBufferSize ) const = 0;
+    virtual bool GetAppInstallDir(AppId_t appID, std::string &pchFolder) const = 0;
 
-    [[nodiscard]] virtual Game *GetAppInstallDirEX( AppId_t appID ) const = 0;
+    [[nodiscard]] virtual const Game & GetAppInstallDirEX(AppId_t appID ) const = 0;
 
 };
 
@@ -159,7 +167,7 @@ public:
         precacheSourceGames = shouldPrecacheSourceGames;
         precacheSource2Games = shouldPrecacheSource2Games;
 #ifdef _WIN32
-        char steamLocationData[SAPP_MAX_PATH * 2];
+        char steamLocationData[SAPP_MAX_PATH];
 
         HKEY steam;
         if ( RegOpenKeyExA( HKEY_LOCAL_MACHINE, R"(SOFTWARE\Valve\Steam)", 0, KEY_QUERY_VALUE | KEY_WOW64_32KEY, &steam ) != ERROR_SUCCESS )
@@ -174,7 +182,7 @@ public:
 
 #else
         std::string steamLocation;
-        steamLocation.reserve(SAPP_MAX_PATH * 2);
+        steamLocation.reserve(SAPP_MAX_PATH);
         {
             std::string pHome = getenv( "HOME" );
 #ifdef __APPLE__
@@ -306,16 +314,10 @@ public:
                         }
 
                     }
-
                     games.emplace_back(keyName, pathString, keyInstallDir, icon, static_cast<AppId_t>( stoi( appid ) ) );
                 }
             }
         }
-
-        std::sort( games.begin(), games.end(), [&]( const Game &a, const Game &b )
-        {
-            return a.appid < b.appid;
-        } );
     }
 
     [[nodiscard]] bool Available() const override
@@ -325,14 +327,15 @@ public:
 
     [[nodiscard]] bool BIsSourceGame( AppId_t appID ) const override
     {
-        if ( !BIsAppInstalled( appID ) )
-            return false;
         if(precacheSourceGames)
             return sourceGames.contains(appID);
 
+        if ( !BIsAppInstalled( appID ) )
+            return false;
+
         std::string dirPath{};
         dirPath.reserve(SAPP_MAX_PATH);
-        GetAppInstallDir( appID, dirPath, SAPP_MAX_PATH );
+        GetAppInstallDir(appID, dirPath);
 
         if ( !std::filesystem::exists( dirPath ) )
         {
@@ -349,15 +352,15 @@ public:
 
     [[nodiscard]] bool BIsSource2Game( AppId_t appID ) const override
     {
-        if ( !BIsAppInstalled( appID ) )
-            return false;
-
         if(precacheSource2Games)
             return source2Games.contains(appID);
 
+        if ( !BIsAppInstalled( appID ) )
+            return false;
+
         std::string dirPath{};
         dirPath.reserve(SAPP_MAX_PATH);
-        GetAppInstallDir( appID, dirPath, SAPP_MAX_PATH );
+        GetAppInstallDir(appID, dirPath);
 
         if ( !std::filesystem::exists( dirPath ) )
             return false;
@@ -392,7 +395,7 @@ public:
         return game != games.end();
     }
 
-    bool GetAppInstallDir(AppId_t appID, std::string &pchFolder, uint32 cchFolderBufferSize ) const override
+    bool GetAppInstallDir(AppId_t appID, std::string &directory) const override
     {
         const auto game = std::find_if( games.begin(), games.end(), [appID]( const Game &g )
         {
@@ -401,22 +404,25 @@ public:
         if ( games.end() == game )
             return false;
 
-        pchFolder.append(game->library + CORRECT_PATH_SEPARATOR_S "common" CORRECT_PATH_SEPARATOR_S + game->installDir);
+        directory.append(game->library + CORRECT_PATH_SEPARATOR_S "common" CORRECT_PATH_SEPARATOR_S + game->installDir);
 
         return true;
     }
 
-    [[nodiscard]] Game *GetAppInstallDirEX( AppId_t appID ) const override
+    [[nodiscard]] const Game & GetAppInstallDirEX(AppId_t appID ) const override
     {
-        const auto game = std::find_if( games.begin(), games.end(), [appID]( const Game &g )
+        const Game& game = *std::find_if( games.cbegin(), games.cend(), [appID]( const Game &g )
         {
             return g.appid == appID;
         } );
-        if ( games.end() == game )
-            return nullptr;
 
-        auto pgame = new Game( *game );
-        return pgame; // fix if need len
+        const Game& cend =  *games.cend();
+
+        if ( &cend == &game )
+            return *games.cend();
+
+
+        return game;
     }
 
     [[nodiscard]] uint32 GetNumInstalledApps() const override
@@ -429,6 +435,13 @@ public:
         for ( int i = 0; i < unMaxAppIDs && i < games.size(); i++ )
             pvecAppID[i] = games.at( i ).appid;
         return unMaxAppIDs <= games.size() ? unMaxAppIDs : games.size();
+    }
+
+    void sortGames(bool toGreater = true) override
+    {
+        std::sort(games.begin(), games.end(), [toGreater](const Game &game1, const Game &game2){
+            return toGreater ? game1.appid < game2.appid : game2.appid < game1.appid;
+        });
     }
 
     [[nodiscard]] AppId_t *GetInstalledAppsEX() const override
