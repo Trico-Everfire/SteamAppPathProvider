@@ -11,7 +11,7 @@ option(SAPP_BUILD_TESTS "Build tests for SAPP" OFF)
 
 option(SAPP_INCLUDE_SPEEDY "fetch content of SpeedyKeyV" ON)
 
-if(SAPP_BUILD_TESTS OR SAPP_BUILD_TESTS)
+if(SAPP_BUILD_TESTS OR SAPP_INCLUDE_SPEEDY)
     include(FetchContent)
     # SpeedyKeyV
     FetchContent_Declare(
