@@ -79,24 +79,24 @@ TEST(SAPP, searchForSourceGamesCachedStressTest) {
         }
     }
 }
-//
-//TEST(SAPP, searchForSourceGamesUncachedStressTest) {
-//    constexpr bool cacheSource = false;
-//    SteamAppPathProvider provider{cacheSource, cacheSource};
-//    ASSERT_TRUE(provider.Available());
-//
-//    auto installedSteamAppCount = provider.GetNumInstalledApps();
-//    std::unique_ptr<uint32_t[]> steamAppIDs(provider.GetInstalledAppsEX());
-//
-//
-//    for(int j = 0; j < 100; j++) //We repeat the evaluation of "is a source game" 100 times to stress test the caching system over the traditional method.
-//    {
-//        for (int i = 0; i < installedSteamAppCount; i++) {
-//            if (!(provider.BIsSourceGame(steamAppIDs[i]) || provider.BIsSource2Game(steamAppIDs[i])))
-//                continue;
-//
-//            std::unique_ptr<SteamAppPathProvider::Game> steamGameInfo(provider.GetAppInstallDirEX(steamAppIDs[i]));
-//            std::cout << steamAppIDs[i] << ": " << steamGameInfo->library << SLASH << "common" << SLASH << steamGameInfo->installDir << " " << (provider.BIsSourceGame(steamAppIDs[i]) ? 1: 2) << std::endl;
-//        }
-//    }
-//}
+
+TEST(SAPP, searchForSourceGamesUncachedStressTest) {
+    constexpr bool cacheSource = false;
+    SteamAppPathProvider provider{cacheSource, cacheSource};
+    ASSERT_TRUE(provider.Available());
+
+    auto installedSteamAppCount = provider.GetNumInstalledApps();
+    std::unique_ptr<uint32_t[]> steamAppIDs(provider.GetInstalledAppsEX());
+
+
+    for(int j = 0; j < 100; j++) //We repeat the evaluation of "is a source game" 100 times to stress test the caching system over the traditional method.
+    {
+        for (int i = 0; i < installedSteamAppCount; i++) {
+            if (!(provider.BIsSourceGame(steamAppIDs[i]) || provider.BIsSource2Game(steamAppIDs[i])))
+                continue;
+
+            const SteamAppPathProvider::Game& steamGameInfo(provider.GetAppInstallDirEX(steamAppIDs[i]));
+            std::cout << steamAppIDs[i] << ": " << steamGameInfo.library << SLASH << "common" << SLASH << steamGameInfo.installDir << " " << (provider.BIsSourceGame(steamAppIDs[i]) ? 1: 2) << std::endl;
+        }
+    }
+}

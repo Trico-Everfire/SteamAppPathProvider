@@ -6,7 +6,6 @@
 #include <vector>
 #include <algorithm>
 #include <cstring>
-#include "KeyValue.h"
 
 #if defined( __GNUC__ ) && !defined( _WIN32 ) && !defined( POSIX )
 #if __GNUC__ < 4
@@ -52,7 +51,7 @@ protected:
     static auto SappFileHelper(std::string_view path ) -> std::string
     {
         constexpr auto read_size = std::size_t( SAPP_MAX_PATH );
-        auto stream = std::ifstream( path.data() );
+        auto stream = std::ifstream( path.data(), std::ios::binary );
         stream.exceptions( std::ios_base::badbit );
 
         auto out = std::string();
@@ -161,6 +160,10 @@ public:
 
 class SteamAppPathProvider final : public ISteamSearchProvider
 {
+    bool basicIncludeCompare(std::string::const_iterator start, std::string_view comp)
+    {
+        return std::includes(start, start+comp.length(), comp.cbegin(), comp.cend());
+    }
 public:
     explicit SteamAppPathProvider(bool shouldPrecacheSourceGames = false, bool shouldPrecacheSource2Games = false)
     {
@@ -219,105 +222,239 @@ public:
         steamLocation.append(CORRECT_PATH_SEPARATOR_S "steamapps" CORRECT_PATH_SEPARATOR_S "libraryfolders.vdf" );
 
         std::string file = SappFileHelper(steamLocation);
-        KeyValueRoot libFolder = KeyValueRoot( file.c_str() );
 
-        if ( !libFolder.IsValid() )
-            return;
-
-        libFolder.Solidify();
-
-        auto &libKeyValue = libFolder["libraryfolders"];
-        for ( int i = 0; i < libKeyValue.ChildCount(); i++ )
+        for(std::string::const_iterator it = file.cbegin(); it != file.cend(); it++)
         {
-            KeyValue &folder = libKeyValue.At( i );
-            const char *name = folder.Key().string;
-            if ( !strcmp( name, "TimeNextStatsReport" ) || !strcmp( name, "ContentStatsID" ) )
+            if(*it != 'p')
                 continue;
 
-            auto pathValue = folder["path"].Value();
-            if ( !pathValue.string )
-                pathValue = folder.Value();
-            if ( !pathValue.string )
-                continue;
-
-            std::string pathString = std::string( pathValue.string );
-            pathString.append(CORRECT_PATH_SEPARATOR_S "steamapps");
-
-            if ( !fs::exists( ( pathString ) ) )
-                continue;
-
-            for ( auto const &dir_entry : fs::directory_iterator( ( pathString ), fs::directory_options::skip_permission_denied ) )
+            if(basicIncludeCompare(it-1, R"("path")"))
             {
-                auto strPath = dir_entry.path().string();
+                it+=5;
+                while(*it != '"')
+                    it++;
 
-                if ( !fs::exists( ( strPath ) ) )
+                auto currIt = it+1;
+                it++;
+                while(*it != '"')
+                    it++;
+                std::string pathString = std::string(currIt, it);
+                pathString.append(CORRECT_PATH_SEPARATOR_S "steamapps");
+
+                if ( !fs::exists( ( pathString ) ) )
                     continue;
 
-                auto indd = strPath.find( "appmanifest_" );
-                auto indd2 = strPath.rfind( ".acf" );
-                if ( ( indd <= strPath.length() ) && ( indd2 <= strPath.length() ) )
+                for ( auto const &dir_entry : fs::directory_iterator( ( pathString ), fs::directory_options::skip_permission_denied ) )
                 {
+                    auto strPath = dir_entry.path().string();
 
-                    auto pathFile = SappFileHelper(std::string(strPath));
-                    KeyValueRoot appManifest = KeyValueRoot( pathFile.c_str() );
-
-                    if ( !appManifest.IsValid() )
-                        return;
-
-                    KeyValue &appState = appManifest["AppState"];
-
-                    if ( appState["name"].Value().string == nullptr )
+                    if ( !fs::exists( ( strPath ) ) )
                         continue;
 
-                    std::string keyName = (appState["name"].Value().string);
-                    std::string keyInstallDir = (appState["installdir"].Value().string);
-                    std::string appid = (appState["appid"].Value().string);
+                    auto indd = strPath.find( "appmanifest_" );
+                    auto indd2 = strPath.rfind( ".acf" );
+                    if ( ( indd <= strPath.length() ) && ( indd2 <= strPath.length() ) )
+                    {
 
-                    std::string icon( librarycache + appid + "_icon.jpg" );
+                        auto pathFile = SappFileHelper(std::string(strPath));
 
-                    std::string fullPath = ( pathString );
-                    fullPath.append((CORRECT_PATH_SEPARATOR_S "common" CORRECT_PATH_SEPARATOR_S));
-                    fullPath.append(keyInstallDir);
+                        std::string keyName;
+                        std::string keyInstallDir;
+                        std::string appid;
 
-                    if ( (shouldPrecacheSource2Games || shouldPrecacheSourceGames) && std::filesystem::exists( fullPath ) ) {
-                        auto dirIterator = std::filesystem::directory_iterator{fullPath,
-                                                                               std::filesystem::directory_options::skip_permission_denied};
-
-                        for(const auto& dir_entry2 : dirIterator)
+                        for(std::string::const_iterator itr = pathFile.cbegin(); itr != pathFile.cend(); itr++)
                         {
-                            if (!dir_entry2.is_directory()) {
+                            if(*itr != 'a' && *itr != 'i' && *itr != 'n')
                                 continue;
-                            }
-
-                            if(shouldPrecacheSourceGames && std::filesystem::exists(dir_entry2.path() / "gameinfo.txt"))
+                            if(basicIncludeCompare(itr-1, R"("appid")"))
                             {
-                                sourceGames.insert(stoi(appid));
-                                break;
-                            }
+                                itr += 6;
+                                while (*itr != '"')
+                                    itr++;
 
-                            if (shouldPrecacheSource2Games && std::filesystem::exists(dir_entry2.path() / "gameinfo.gi")) {
-                                source2Games.insert(stoi(appid));
-                                break;
-                            }
+                                auto currItr = itr + 1;
+                                itr++;
+                                while (*itr != '"')
+                                    itr++;
+                                appid = std::string{currItr, itr};
+                            };
+                            if(basicIncludeCompare(itr-1, R"("installdir")"))
+                            {
+                                itr += 11;
+                                while (*itr != '"')
+                                    itr++;
 
-                            if(!shouldPrecacheSource2Games)
-                                break;
+                                auto currItr = itr + 1;
+                                itr++;
+                                while (*itr != '"')
+                                    itr++;
+                                keyInstallDir = {currItr, itr};
+                            };
+                            if(basicIncludeCompare(itr-1, R"("name")"))
+                            {
+                                itr += 5;
+                                while (*itr != '"')
+                                    itr++;
 
-                            for (auto const &subdir_entry: std::filesystem::directory_iterator{dir_entry2.path(),
-                                                                                               std::filesystem::directory_options::skip_permission_denied}) {
-                                if (subdir_entry.is_directory() && std::filesystem::exists(subdir_entry.path() / "gameinfo.gi")) {
-                                    source2Games.insert(stoi(appid));
-                                    break;
-                                }
-                            }
+                                auto currItr = itr + 1;
+                                itr++;
+                                while (*itr != '"')
+                                    itr++;
+                                keyName = {currItr, itr};
+                            };
 
                         }
 
+                        std::string icon( librarycache + appid + "_icon.jpg" );
+
+                        std::string fullPath = ( pathString );
+                        fullPath.append((CORRECT_PATH_SEPARATOR_S "common" CORRECT_PATH_SEPARATOR_S));
+                        fullPath.append(keyInstallDir);
+
+                        if ( (shouldPrecacheSource2Games || shouldPrecacheSourceGames) && std::filesystem::exists( fullPath ) ) {
+                            auto dirIterator = std::filesystem::directory_iterator{fullPath,
+                                                                                   std::filesystem::directory_options::skip_permission_denied};
+
+                            for(const auto& dir_entry2 : dirIterator)
+                            {
+                                if (!dir_entry2.is_directory()) {
+                                    continue;
+                                }
+
+                                if(shouldPrecacheSourceGames && std::filesystem::exists(dir_entry2.path() / "gameinfo.txt"))
+                                {
+                                    sourceGames.insert(stoi(appid));
+                                    break;
+                                }
+
+                                if (shouldPrecacheSource2Games && std::filesystem::exists(dir_entry2.path() / "gameinfo.gi")) {
+                                    source2Games.insert(stoi(appid));
+                                    break;
+                                }
+
+                                if(!shouldPrecacheSource2Games)
+                                    break;
+
+                                for (auto const &subdir_entry: std::filesystem::directory_iterator{dir_entry2.path(),
+                                                                                                   std::filesystem::directory_options::skip_permission_denied}) {
+                                    if (subdir_entry.is_directory() && std::filesystem::exists(subdir_entry.path() / "gameinfo.gi")) {
+                                        source2Games.insert(stoi(appid));
+                                        break;
+                                    }
+                                }
+
+                            }
+
+                        }
+                        games.emplace_back(keyName, pathString, keyInstallDir, icon, static_cast<AppId_t>( stoi( appid ) ) );
                     }
-                    games.emplace_back(keyName, pathString, keyInstallDir, icon, static_cast<AppId_t>( stoi( appid ) ) );
                 }
-            }
+
+            };
         }
+
+
+
+
+//        KeyValueRoot libFolder = KeyValueRoot( file.c_str() );
+//
+//        if ( !libFolder.IsValid() )
+//            return;
+//
+//        libFolder.Solidify();
+//
+//        auto &libKeyValue = libFolder["libraryfolders"];
+//        for ( int i = 0; i < libKeyValue.ChildCount(); i++ )
+//        {
+//            KeyValue &folder = libKeyValue.At( i );
+//            const char *name = folder.Key().string;
+//            if ( !strcmp( name, "TimeNextStatsReport" ) || !strcmp( name, "ContentStatsID" ) )
+//                continue;
+//
+//            auto pathValue = folder["path"].Value();
+//            if ( !pathValue.string )
+//                pathValue = folder.Value();
+//            if ( !pathValue.string )
+//                continue;
+//
+//            std::string pathString = std::string( pathValue.string );
+//            pathString.append(CORRECT_PATH_SEPARATOR_S "steamapps");
+//
+//            if ( !fs::exists( ( pathString ) ) )
+//                continue;
+//
+//            for ( auto const &dir_entry : fs::directory_iterator( ( pathString ), fs::directory_options::skip_permission_denied ) )
+//            {
+//                auto strPath = dir_entry.path().string();
+//
+//                if ( !fs::exists( ( strPath ) ) )
+//                    continue;
+//
+//                auto indd = strPath.find( "appmanifest_" );
+//                auto indd2 = strPath.rfind( ".acf" );
+//                if ( ( indd <= strPath.length() ) && ( indd2 <= strPath.length() ) )
+//                {
+//
+//                    auto pathFile = SappFileHelper(std::string(strPath));
+//                    KeyValueRoot appManifest = KeyValueRoot( pathFile.c_str() );
+//
+//                    if ( !appManifest.IsValid() )
+//                        return;
+//
+//                    KeyValue &appState = appManifest["AppState"];
+//
+//                    if ( appState["name"].Value().string == nullptr )
+//                        continue;
+//
+//                    std::string keyName = (appState["name"].Value().string);
+//                    std::string keyInstallDir = (appState["installdir"].Value().string);
+//                    std::string appid = (appState["appid"].Value().string);
+//
+//                    std::string icon( librarycache + appid + "_icon.jpg" );
+//
+//                    std::string fullPath = ( pathString );
+//                    fullPath.append((CORRECT_PATH_SEPARATOR_S "common" CORRECT_PATH_SEPARATOR_S));
+//                    fullPath.append(keyInstallDir);
+//
+//                    if ( (shouldPrecacheSource2Games || shouldPrecacheSourceGames) && std::filesystem::exists( fullPath ) ) {
+//                        auto dirIterator = std::filesystem::directory_iterator{fullPath,
+//                                                                               std::filesystem::directory_options::skip_permission_denied};
+//
+//                        for(const auto& dir_entry2 : dirIterator)
+//                        {
+//                            if (!dir_entry2.is_directory()) {
+//                                continue;
+//                            }
+//
+//                            if(shouldPrecacheSourceGames && std::filesystem::exists(dir_entry2.path() / "gameinfo.txt"))
+//                            {
+//                                sourceGames.insert(stoi(appid));
+//                                break;
+//                            }
+//
+//                            if (shouldPrecacheSource2Games && std::filesystem::exists(dir_entry2.path() / "gameinfo.gi")) {
+//                                source2Games.insert(stoi(appid));
+//                                break;
+//                            }
+//
+//                            if(!shouldPrecacheSource2Games)
+//                                break;
+//
+//                            for (auto const &subdir_entry: std::filesystem::directory_iterator{dir_entry2.path(),
+//                                                                                               std::filesystem::directory_options::skip_permission_denied}) {
+//                                if (subdir_entry.is_directory() && std::filesystem::exists(subdir_entry.path() / "gameinfo.gi")) {
+//                                    source2Games.insert(stoi(appid));
+//                                    break;
+//                                }
+//                            }
+//
+//                        }
+//
+//                    }
+//                    games.emplace_back(keyName, pathString, keyInstallDir, icon, static_cast<AppId_t>( stoi( appid ) ) );
+//                }
+//            }
+//        }
     }
 
     [[nodiscard]] bool Available() const override
