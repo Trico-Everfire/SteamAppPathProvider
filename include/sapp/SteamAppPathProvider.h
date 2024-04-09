@@ -465,7 +465,7 @@ public:
     [[nodiscard]] bool BIsSourceGame( AppId_t appID ) const override
     {
         if(precacheSourceGames)
-            return sourceGames.contains(appID);
+            return (sourceGames.find(appID) != sourceGames.end());
 
         if ( !BIsAppInstalled( appID ) )
             return false;
@@ -490,7 +490,7 @@ public:
     [[nodiscard]] bool BIsSource2Game( AppId_t appID ) const override
     {
         if(precacheSource2Games)
-            return source2Games.contains(appID);
+            return (source2Games.find(appID) != source2Games.end());
 
         if ( !BIsAppInstalled( appID ) )
             return false;
