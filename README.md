@@ -1,5 +1,3 @@
-# Steam App Path Provider
+# SteamAppPathProvider
 
-A header-only C++20 library to get information about installed Steam games.
-
-This fork rewrites the entire API to be more user-friendly.
+A small C++20 library to get information about installed Steam games, as well as Steam installation information, without relying on the Steam API.
