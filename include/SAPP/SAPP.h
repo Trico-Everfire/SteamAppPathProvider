@@ -197,10 +197,6 @@ public:
 		return this->gameDetails.at(appID).installDirectory;
 	}
 
-	[[nodiscard]] const std::unordered_map<AppID, GameDetails>& getAllGameDetails() const {
-		return this->gameDetails;
-	}
-
 	[[nodiscard]] std::string getGameIconPath(AppID appID) const {
 		if (!this->gameDetails.contains(appID)) {
 			return "";
