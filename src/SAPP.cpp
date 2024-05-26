@@ -278,28 +278,44 @@ std::string SAPP::getAppIconPath(AppID appID) const {
 	if (!this->gameDetails.contains(appID)) {
 		return "";
 	}
-	return (std::filesystem::path{this->steamInstallDir} / "appcache" / "librarycache" / (std::to_string(appID) + "_icon.jpg")).string();
+	auto path = (std::filesystem::path{this->steamInstallDir} / "appcache" / "librarycache" / (std::to_string(appID) + "_icon.jpg")).string();
+	if (!std::filesystem::exists(path)) {
+		return "";
+	}
+	return path;
 }
 
 std::string SAPP::getAppLogoPath(AppID appID) const {
 	if (!this->gameDetails.contains(appID)) {
 		return "";
 	}
-	return (std::filesystem::path{this->steamInstallDir} / "appcache" / "librarycache" / (std::to_string(appID) + "_logo.png")).string();
+	auto path = (std::filesystem::path{this->steamInstallDir} / "appcache" / "librarycache" / (std::to_string(appID) + "_logo.png")).string();
+	if (!std::filesystem::exists(path)) {
+		return "";
+	}
+	return path;
 }
 
 std::string SAPP::getAppBoxArtPath(AppID appID) const {
 	if (!this->gameDetails.contains(appID)) {
 		return "";
 	}
-	return (std::filesystem::path{this->steamInstallDir} / "appcache" / "librarycache" / (std::to_string(appID) + "_library_600x900.jpg")).string();
+	auto path = (std::filesystem::path{this->steamInstallDir} / "appcache" / "librarycache" / (std::to_string(appID) + "_library_600x900.jpg")).string();
+	if (!std::filesystem::exists(path)) {
+		return "";
+	}
+	return path;
 }
 
 std::string SAPP::getAppStoreArtPath(AppID appID) const {
 	if (!this->gameDetails.contains(appID)) {
 		return "";
 	}
-	return (std::filesystem::path{this->steamInstallDir} / "appcache" / "librarycache" / (std::to_string(appID) + "_header.jpg")).string();
+	auto path = (std::filesystem::path{this->steamInstallDir} / "appcache" / "librarycache" / (std::to_string(appID) + "_header.jpg")).string();
+	if (!std::filesystem::exists(path)) {
+		return "";
+	}
+	return path;
 }
 
 bool SAPP::isAppUsingSourceEngine(AppID appID) const {
