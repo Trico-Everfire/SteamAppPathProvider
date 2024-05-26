@@ -7,8 +7,6 @@ include(GNUInstallDirs)
 add_library(${PROJECT_NAME} STATIC "${CMAKE_CURRENT_LIST_DIR}/include/sapp/SteamAppPathProvider.h")
 target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include/")
 
-set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
-
 option(SAPP_BUILD_TESTS "Build tests for SAPP" OFF)
 
 option(SAPP_INCLUDE_SPEEDY "fetch content of SpeedyKeyV" ON)
@@ -24,6 +22,7 @@ if(SAPP_BUILD_TESTS OR SAPP_INCLUDE_SPEEDY)
 endif ()
 
 if(SAPP_BUILD_TESTS)
+    set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
     # Google Test
     FetchContent_Declare(
             googletest
