@@ -25,7 +25,7 @@ using AppID = std::uint32_t;
 
 struct GameDetails {
 	std::string name;
-	std::string installDirectory; // game->library + PATH_SEPARATOR "common" PATH_SEPARATOR + game->installDirectory
+	std::string installDirectory;
 };
 
 class SAPP {
@@ -280,6 +280,14 @@ public:
 			return true;
 		}
 		return false;
+	}
+
+	[[nodiscard]] explicit operator bool() const {
+		return !this->gameDetails.empty();
+	}
+
+	[[nodiscard]] const GameDetails& operator[](AppID appID) const {
+		return this->gameDetails.at(appID);
 	}
 
 private:
