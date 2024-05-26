@@ -1,7 +1,6 @@
 #include <SAPP/SAPP.h>
 
 #include <algorithm>
-#include <cstdlib>
 #include <fstream>
 #include <filesystem>
 #include <ranges>
@@ -271,7 +270,7 @@ std::string SAPP::getAppInstallDir(AppID appID) const {
 	if (!this->gameDetails.contains(appID)) {
 		return "";
 	}
-	return std::filesystem::path{this->libraryDirs[this->gameDetails.at(appID).libraryInstallDirsIndex]} / "common" / this->gameDetails.at(appID).installDir;
+	return (std::filesystem::path{this->libraryDirs[this->gameDetails.at(appID).libraryInstallDirsIndex]} / "common" / this->gameDetails.at(appID).installDir).string();
 }
 
 std::string SAPP::getAppIconPath(AppID appID) const {
