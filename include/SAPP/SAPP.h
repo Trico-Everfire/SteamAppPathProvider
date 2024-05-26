@@ -62,15 +62,15 @@ public:
 #endif
 		}
 
-		std::error_code c;
-		if (!std::filesystem::exists(steamLocation, c)) {
-			std::string location = "";
+		std::error_code ec;
+		if (!std::filesystem::exists(steamLocation, ec)) {
+			std::string location;
 			std::filesystem::path d{"cwd/steamclient64.dll"};
 			for (const auto& entry : std::filesystem::directory_iterator{"/proc/"}) {
-				if (std::filesystem::exists(entry / d, c)) {
-					c.clear();
-					const auto s = std::filesystem::read_symlink(entry.path() / "cwd", c);
-					if (c) {
+				if (std::filesystem::exists(entry / d, ec)) {
+					ec.clear();
+					const auto s = std::filesystem::read_symlink(entry.path() / "cwd", ec);
+					if (ec) {
 						continue;
 					}
 					location = s.string();

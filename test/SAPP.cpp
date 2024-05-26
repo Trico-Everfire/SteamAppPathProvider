@@ -7,12 +7,12 @@
 using namespace sapp;
 
 TEST(SAPP, list_installed_games) {
-    SAPP sapp;
+	SAPP sapp;
 
 	const auto& allGameDetails = sapp.getAllGameDetails();
-    ASSERT_FALSE(allGameDetails.empty());
+	ASSERT_FALSE(allGameDetails.empty());
 
-    for (const auto& [appID, gameDetails] : allGameDetails) {
-        std::cout << gameDetails.name << " (" << appID << "): " << gameDetails.installDirectory << std::endl;
-    }
+	for (const auto& [appID, gameDetails] : allGameDetails) {
+		std::cout << gameDetails.name << " (" << appID << "): " << gameDetails.installDirectory << std::endl;
+	}
 }

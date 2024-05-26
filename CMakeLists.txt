@@ -17,7 +17,7 @@ if (SAPP_FETCH_DEPS AND NOT TARGET keyvalues)
 endif()
 
 # Create library
-add_library(${PROJECT_NAME} INTERFACE "${CMAKE_CURRENT_LIST_DIR}/include/sapp/SAPP.h")
+add_library(${PROJECT_NAME} INTERFACE "${CMAKE_CURRENT_LIST_DIR}/include/SAPP/SAPP.h")
 
 target_link_libraries(${PROJECT_NAME} INTERFACE keyvalues)
 
