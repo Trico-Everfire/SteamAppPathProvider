@@ -4,4 +4,4 @@
 
 [OzxyBox](https://github.com/ozxybox): created the KV1 parser this library uses
 
-[craftablescience](https://github.com/craftablescience) (me!): Rewrote the code to my liking
+[craftablescience](https://github.com/craftablescience): Various improvements (rewrote the library)
