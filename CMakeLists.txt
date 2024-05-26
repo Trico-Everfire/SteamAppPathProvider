@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(SAPP CXX)
+project(SAPP)
 set(CMAKE_CXX_STANDARD 23)
 
 include(GNUInstallDirs)
