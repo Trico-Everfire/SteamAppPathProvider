@@ -4,13 +4,13 @@
 
 #include <SAPP/SAPP.h>
 
-using namespace sapp;
-
 TEST(SAPP, list_installed_games) {
 	SAPP sapp;
 	ASSERT_TRUE(sapp);
 
-	for (AppID appID : sapp.getInstalledGameIDs()) {
-		std::cout << sapp.getGameName(appID) << " (" << appID << "): " << sapp.getGameInstallDirectory(appID) << std::endl;
+	std::cout << sapp.getSteamInstallDir() << std::endl;
+
+	for (SAPP::AppID appID : sapp.getInstalledApps()) {
+		std::cout << sapp.getAppName(appID) << " (" << appID << "): " << sapp.getAppInstallDir(appID) << std::endl;
 	}
 }

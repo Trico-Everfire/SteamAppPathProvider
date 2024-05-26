@@ -17,13 +17,13 @@ if (SAPP_FETCH_DEPS AND NOT TARGET keyvalues)
 endif()
 
 # Create library
-add_library(${PROJECT_NAME} INTERFACE "${CMAKE_CURRENT_LIST_DIR}/include/SAPP/SAPP.h")
+add_library(${PROJECT_NAME} STATIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/SAPP/SAPP.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/SAPP.cpp")
 
-target_link_libraries(${PROJECT_NAME} INTERFACE keyvalues)
+target_link_libraries(${PROJECT_NAME} PRIVATE keyvalues)
 
-target_include_directories(${PROJECT_NAME} INTERFACE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 # Create tests
 if(SAPP_BUILD_TESTS)
