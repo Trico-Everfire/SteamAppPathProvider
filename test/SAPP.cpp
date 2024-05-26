@@ -8,11 +8,9 @@ using namespace sapp;
 
 TEST(SAPP, list_installed_games) {
 	SAPP sapp;
+	ASSERT_TRUE(sapp);
 
-	const auto& allGameDetails = sapp.getAllGameDetails();
-	ASSERT_FALSE(allGameDetails.empty());
-
-	for (const auto& [appID, gameDetails] : allGameDetails) {
-		std::cout << gameDetails.name << " (" << appID << "): " << gameDetails.installDirectory << std::endl;
+	for (AppID appID : sapp.getInstalledGameIDs()) {
+		std::cout << sapp.getGameName(appID) << " (" << appID << "): " << sapp.getGameInstallDirectory(appID) << std::endl;
 	}
 }

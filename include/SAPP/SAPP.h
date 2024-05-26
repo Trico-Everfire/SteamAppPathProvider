@@ -7,6 +7,7 @@
 #include <cstring>
 #include <fstream>
 #include <filesystem>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -171,6 +172,11 @@ public:
 				};
 			}
 		}
+	}
+
+	[[nodiscard]] std::vector<AppID> getInstalledGameIDs() const {
+		auto keys = std::views::keys(this->gameDetails);
+		return {keys.begin(), keys.end()};
 	}
 
 	[[nodiscard]] bool isGameInstalled(AppID appID) const {
