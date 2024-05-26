@@ -11,8 +11,19 @@ set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 
 option(SAPP_BUILD_TESTS "Build tests for SAPP" OFF)
 
-if(SAPP_BUILD_TESTS)
+option(SAPP_INCLUDE_SPEEDY "fetch content of SpeedyKeyV" ON)
+
+if(SAPP_BUILD_TESTS OR SAPP_INCLUDE_SPEEDY)
     include(FetchContent)
+    # SpeedyKeyV
+    FetchContent_Declare(
+            keyvalues
+            GIT_REPOSITORY https://github.com/ozxybox/SpeedyKeyV.git
+            GIT_TAG master)
+    FetchContent_MakeAvailable(keyvalues)
+endif ()
+
+if(SAPP_BUILD_TESTS)
     # Google Test
     FetchContent_Declare(
             googletest
@@ -22,7 +33,7 @@ if(SAPP_BUILD_TESTS)
     enable_testing()
 
     add_executable(${PROJECT_NAME}_test ${CMAKE_CURRENT_SOURCE_DIR}/test/SAPPTests.cpp)
-    target_link_libraries(${PROJECT_NAME}_test PUBLIC ${PROJECT_NAME} gtest_main)
+    target_link_libraries(${PROJECT_NAME}_test PUBLIC ${PROJECT_NAME} keyvalues gtest_main)
     target_include_directories(
             ${PROJECT_NAME}_test PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/include)
