@@ -51,6 +51,4 @@ private:
 	std::unordered_map<AppID, GameInfo> gameDetails;
 	std::string steamInstallDir;
 	std::vector<std::string> libraryDirs;
-
-	static std::string readTextFile(const std::string& path);
 };

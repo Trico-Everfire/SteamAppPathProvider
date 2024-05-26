@@ -13,6 +13,86 @@
 
 #include <KeyValue.h>
 
+namespace {
+
+std::string readTextFile(const std::string &path) {
+	std::ifstream file{path};
+	auto size = std::filesystem::file_size(path);
+	std::string out;
+	out.resize(size);
+	file.read(out.data(), static_cast<std::streamsize>(size));
+	return out;
+}
+
+bool isAppUsingSourceEnginePredicate(std::string_view installDir) {
+	std::filesystem::directory_iterator dirIterator{installDir, std::filesystem::directory_options::skip_permission_denied};
+	return std::any_of(std::filesystem::begin(dirIterator), std::filesystem::end(dirIterator), [](const auto& entry){
+		return entry.is_directory() && std::filesystem::exists(entry.path() / "gameinfo.txt");
+	});
+}
+
+bool isAppUsingSource2EnginePredicate(std::string_view installDir) {
+	std::filesystem::directory_iterator dirIterator{installDir, std::filesystem::directory_options::skip_permission_denied};
+	return std::any_of(std::filesystem::begin(dirIterator), std::filesystem::end(dirIterator), [](const auto& entry) {
+		if (!entry.is_directory()) {
+			return false;
+		}
+		if (std::filesystem::exists(entry.path() / "gameinfo.gi")) {
+			return true;
+		}
+		std::filesystem::directory_iterator subDirIterator{entry.path(), std::filesystem::directory_options::skip_permission_denied};
+		return std::any_of(std::filesystem::begin(subDirIterator), std::filesystem::end(subDirIterator), [](const auto& entry) {
+			return entry.is_directory() && std::filesystem::exists(entry.path() / "gameinfo.gi");
+		});
+	});
+}
+
+template<bool(*P)(std::string_view)>
+std::unordered_set<SAPP::AppID> getAppsKnownToUseEngine() {
+	if constexpr (P == &::isAppUsingSourceEnginePredicate) {
+		return {
+#include "cache/EngineSource.inl"
+		};
+	} else if constexpr (P == &::isAppUsingSource2EnginePredicate) {
+		return {
+#include "cache/EngineSource2.inl"
+		};
+	} else {
+		return {};
+	}
+}
+
+template<bool(*P)(std::string_view)>
+bool isAppUsingEngine(const SAPP* sapp, SAPP::AppID appID) {
+	static std::unordered_set<SAPP::AppID> knownIs = ::getAppsKnownToUseEngine<P>();
+	if (knownIs.contains(appID)) {
+		return true;
+	}
+
+	static std::unordered_set<SAPP::AppID> knownIsNot;
+	if (knownIsNot.contains(appID)) {
+		return false;
+	}
+
+	if (!sapp->isAppInstalled(appID)) {
+		return false;
+	}
+
+	auto installDir = sapp->getAppInstallDir(appID);
+	if (!std::filesystem::exists(installDir)) {
+		return false;
+	}
+
+	if (P(installDir)) {
+		knownIs.emplace(appID);
+		return true;
+	}
+	knownIsNot.emplace(appID);
+	return false;
+}
+
+} // namespace
+
 SAPP::SAPP() {
 	std::filesystem::path steamLocation;
 
@@ -70,7 +150,7 @@ SAPP::SAPP() {
 
 	this->steamInstallDir = steamLocation.string();
 
-	auto libraryFoldersData = readTextFile((steamLocation / "steamapps" / "libraryfolders.vdf").string());
+	auto libraryFoldersData = ::readTextFile((steamLocation / "steamapps" / "libraryfolders.vdf").string());
 	KeyValueRoot libraryFolders{libraryFoldersData.c_str()};
 
 	if (!libraryFolders.IsValid()) {
@@ -124,7 +204,7 @@ SAPP::SAPP() {
 				continue;
 			}
 
-			auto appManifestData = readTextFile(entry.path().string());
+			auto appManifestData = ::readTextFile(entry.path().string());
 			KeyValueRoot appManifest(appManifestData.c_str());
 
 			if (!appManifest.IsValid()) {
@@ -222,60 +302,8 @@ std::string SAPP::getAppStoreArtPath(AppID appID) const {
 	return (std::filesystem::path{this->steamInstallDir} / "appcache" / "librarycache" / (std::to_string(appID) + "_header.jpg")).string();
 }
 
-template<bool(*P)(std::string_view)>
-static bool isAppUsingEngine(const SAPP* sapp, SAPP::AppID appID) {
-	static std::unordered_set<SAPP::AppID> knownIs;
-	if (knownIs.contains(appID)) {
-		return true;
-	}
-
-	static std::unordered_set<SAPP::AppID> knownIsNot;
-	if (knownIsNot.contains(appID)) {
-		return false;
-	}
-
-	if (!sapp->isAppInstalled(appID)) {
-		return false;
-	}
-
-	auto installDir = sapp->getAppInstallDir(appID);
-	if (!std::filesystem::exists(installDir)) {
-		return false;
-	}
-
-	if (P(installDir)) {
-		knownIs.emplace(appID);
-		return true;
-	}
-	knownIsNot.emplace(appID);
-	return false;
-}
-
-static bool isAppUsingSourceEnginePredicate(std::string_view installDir) {
-	std::filesystem::directory_iterator dirIterator{installDir, std::filesystem::directory_options::skip_permission_denied};
-	return std::any_of(std::filesystem::begin(dirIterator), std::filesystem::end(dirIterator), [](const auto& entry){
-		return entry.is_directory() && std::filesystem::exists(entry.path() / "gameinfo.txt");
-	});
-}
-
 bool SAPP::isAppUsingSourceEngine(AppID appID) const {
 	return ::isAppUsingEngine<::isAppUsingSourceEnginePredicate>(this, appID);
-}
-
-static bool isAppUsingSource2EnginePredicate(std::string_view installDir) {
-	std::filesystem::directory_iterator dirIterator{installDir, std::filesystem::directory_options::skip_permission_denied};
-	return std::any_of(std::filesystem::begin(dirIterator), std::filesystem::end(dirIterator), [](const auto& entry) {
-		if (!entry.is_directory()) {
-			return false;
-		}
-		if (std::filesystem::exists(entry.path() / "gameinfo.gi")) {
-			return true;
-		}
-		std::filesystem::directory_iterator subDirIterator{entry.path(), std::filesystem::directory_options::skip_permission_denied};
-		return std::any_of(std::filesystem::begin(subDirIterator), std::filesystem::end(subDirIterator), [](const auto& entry) {
-			return entry.is_directory() && std::filesystem::exists(entry.path() / "gameinfo.gi");
-		});
-	});
 }
 
 bool SAPP::isAppUsingSource2Engine(AppID appID) const {
@@ -284,13 +312,4 @@ bool SAPP::isAppUsingSource2Engine(AppID appID) const {
 
 SAPP::operator bool() const {
 	return !this->gameDetails.empty();
-}
-
-std::string SAPP::readTextFile(const std::string& path) {
-	std::ifstream file{path};
-	auto size = std::filesystem::file_size(path);
-	std::string out;
-	out.resize(size);
-	file.read(out.data(), static_cast<std::streamsize>(size));
-	return out;
 }
