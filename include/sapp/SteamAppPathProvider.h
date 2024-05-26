@@ -152,7 +152,7 @@ public:
 
     [[nodiscard]] virtual AppId_t *GetInstalledAppsEX() const = 0;
 
-    virtual bool GetAppInstallDir(AppId_t appID, std::string &pchFolder, int pFileSize = 0) const = 0;
+    virtual bool GetAppInstallDir(AppId_t appID, std::string &pchFolder) const = 0;
 
     [[nodiscard]] virtual const Game & GetAppInstallDirEX(AppId_t appID ) const = 0;
 
@@ -532,7 +532,7 @@ public:
         return game != games.end();
     }
 
-    bool GetAppInstallDir(AppId_t appID, std::string &directory, int pFileSize = 0) const override
+    bool GetAppInstallDir(AppId_t appID, std::string &directory) const override
     {
         const auto game = std::find_if( games.begin(), games.end(), [appID]( const Game &g )
         {
