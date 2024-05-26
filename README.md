@@ -1,6 +1,4 @@
-# SteamAppPathProvider
-A Steam API-less implementation of stubbed functions for getting installed steam apps on the local machine. 
+# Steam App Path Provider
+A header-only library to get information about installed Steam games.
 
-This library has 1 dependency that is required to use it:
-Ozxy's SpeedyKeyv
-https://github.com/ozxybox/SpeedyKeyV.git
+This fork rewrites the entire API to be more user-friendly.

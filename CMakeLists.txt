@@ -1,41 +1,41 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.16)
 project(SAPP)
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 
-include(GNUInstallDirs)
+# Options
+option(SAPP_BUILD_TESTS "Build tests"                      OFF)
+option(SAPP_FETCH_DEPS  "Automatically fetch dependencies"  ON)
 
-add_library(${PROJECT_NAME} STATIC "${CMAKE_CURRENT_LIST_DIR}/include/sapp/SteamAppPathProvider.h")
-target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include/")
-
-option(SAPP_BUILD_TESTS "Build tests for SAPP" OFF)
-
-option(SAPP_INCLUDE_SPEEDY "fetch content of SpeedyKeyV" ON)
-
-if(SAPP_BUILD_TESTS OR SAPP_INCLUDE_SPEEDY)
-    include(FetchContent)
-    # SpeedyKeyV
+# SpeedyKeyV
+include(FetchContent)
+if (SAPP_FETCH_DEPS AND NOT TARGET keyvalues)
     FetchContent_Declare(
             keyvalues
             GIT_REPOSITORY https://github.com/ozxybox/SpeedyKeyV.git
             GIT_TAG master)
     FetchContent_MakeAvailable(keyvalues)
-endif ()
+endif()
 
+# Create library
+add_library(${PROJECT_NAME} INTERFACE "${CMAKE_CURRENT_LIST_DIR}/include/sapp/SAPP.h")
+
+target_link_libraries(${PROJECT_NAME} INTERFACE keyvalues)
+
+target_include_directories(${PROJECT_NAME} INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+
+# Create tests
 if(SAPP_BUILD_TESTS)
-    set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
-    # Google Test
     FetchContent_Declare(
             googletest
             GIT_REPOSITORY https://github.com/google/googletest.git
-            GIT_TAG release-1.12.1)
+            GIT_TAG v1.14.0)
     FetchContent_MakeAvailable(googletest)
     enable_testing()
 
-    add_executable(${PROJECT_NAME}_test ${CMAKE_CURRENT_SOURCE_DIR}/test/SAPPTests.cpp)
-    target_link_libraries(${PROJECT_NAME}_test PUBLIC ${PROJECT_NAME} keyvalues gtest_main)
-    target_include_directories(
-            ${PROJECT_NAME}_test PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    add_executable(${PROJECT_NAME}_test "${CMAKE_CURRENT_SOURCE_DIR}/test/SAPP.cpp")
+    target_link_libraries(${PROJECT_NAME}_test PUBLIC ${PROJECT_NAME} gtest_main)
 
     include(GoogleTest)
     gtest_discover_tests(${PROJECT_NAME}_test)
