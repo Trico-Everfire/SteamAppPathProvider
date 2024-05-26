@@ -13,6 +13,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #ifdef _WIN32
 #include <Windows.h>
