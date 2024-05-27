@@ -48,17 +48,16 @@ bool isAppUsingSource2EnginePredicate(std::string_view installDir) {
 
 template<bool(*P)(std::string_view)>
 std::unordered_set<SAPP::AppID> getAppsKnownToUseEngine() {
-	if constexpr (P == &::isAppUsingSourceEnginePredicate) {
+	if (P == &::isAppUsingSourceEnginePredicate) {
 		return {
 #include "cache/EngineSource.inl"
 		};
-	} else if constexpr (P == &::isAppUsingSource2EnginePredicate) {
+	} else if (P == &::isAppUsingSource2EnginePredicate) {
 		return {
 #include "cache/EngineSource2.inl"
 		};
-	} else {
-		return {};
 	}
+	return {};
 }
 
 template<bool(*P)(std::string_view)>
