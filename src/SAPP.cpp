@@ -46,13 +46,13 @@ bool isAppUsingSource2EnginePredicate(std::string_view installDir) {
 	});
 }
 
-template<bool(*P)(std::string_view)>
-std::unordered_set<SAPP::AppID> getAppsKnownToUseEngine() {
-	if (P == &::isAppUsingSourceEnginePredicate) {
+// Note: this can't be a template because gcc threw a fit. No idea why
+std::unordered_set<SAPP::AppID> getAppsKnownToUseEngine(bool(*p)(std::string_view)) {
+	if (p == &::isAppUsingSourceEnginePredicate) {
 		return {
 #include "cache/EngineSource.inl"
 		};
-	} else if (P == &::isAppUsingSource2EnginePredicate) {
+	} else if (p == &::isAppUsingSource2EnginePredicate) {
 		return {
 #include "cache/EngineSource2.inl"
 		};
@@ -62,7 +62,7 @@ std::unordered_set<SAPP::AppID> getAppsKnownToUseEngine() {
 
 template<bool(*P)(std::string_view)>
 bool isAppUsingEngine(const SAPP* sapp, SAPP::AppID appID) {
-	static std::unordered_set<SAPP::AppID> knownIs = ::getAppsKnownToUseEngine<P>();
+	static std::unordered_set<SAPP::AppID> knownIs = ::getAppsKnownToUseEngine(P);
 	if (knownIs.contains(appID)) {
 		return true;
 	}
@@ -77,7 +77,7 @@ bool isAppUsingEngine(const SAPP* sapp, SAPP::AppID appID) {
 	}
 
 	auto installDir = sapp->getAppInstallDir(appID);
-	if (!std::filesystem::exists(installDir)) {
+	if (!std::filesystem::exists(installDir)) [[unlikely]] {
 		return false;
 	}
 
@@ -115,11 +115,17 @@ SAPP::SAPP() {
 	}
 #else
 	{
-		std::string home = std::getenv("HOME");
+		std::filesystem::path home{std::getenv("HOME")};
 #ifdef __APPLE__
-		steamLocation = std::filesystem::path{home} / "Library" / "Application Support" / "Steam";
+		steamLocation = home / "Library" / "Application Support" / "Steam";
 #else
-		steamLocation = std::filesystem::path{home} / ".steam" / "steam";
+		// Snap install takes priority, the .steam symlink may exist simultaneously with Snap installs
+		steamLocation = home / "snap" / "steam" / "common" / ".steam" / "steam";
+
+		if (!std::filesystem::exists(steamLocation)) {
+			// Use the regular install path
+			steamLocation = home / ".steam" / "steam";
+		}
 #endif
 	}
 
@@ -148,7 +154,12 @@ SAPP::SAPP() {
 
 	this->steamInstallDir = steamLocation.string();
 
-	auto libraryFoldersData = ::readTextFile((steamLocation / "steamapps" / "libraryfolders.vdf").string());
+	auto libraryFoldersFilePath = steamLocation / "steamapps" / "libraryfolders.vdf";
+	if (!std::filesystem::exists(libraryFoldersFilePath)) {
+		return;
+	}
+
+	auto libraryFoldersData = ::readTextFile(libraryFoldersFilePath.string());
 	KeyValueRoot libraryFolders{libraryFoldersData.c_str()};
 
 	if (!libraryFolders.IsValid()) {
