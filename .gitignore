@@ -4,4 +4,6 @@
 .vscode/
 
 # CMake
+build/
 cmake-build-*/
+out/
