@@ -7,6 +7,7 @@
 #include <unordered_set>
 
 #ifdef _WIN32
+#include <memory>
 #include <Windows.h>
 #endif
 
@@ -111,7 +112,7 @@ SAPP::SAPP() {
 		}
 
 		RegCloseKey(steam);
-		steamLocation = steamLocationData.get();
+		steamLocation = steamLocationSize > 0 ? std::string(steamLocationData.get(), steamLocationSize - 1) : "";
 	}
 #else
 	{
