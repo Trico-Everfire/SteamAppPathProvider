@@ -15,7 +15,7 @@
 
 namespace {
 
-std::string readTextFile(const std::string &path) {
+std::string readTextFile(const std::string& path) {
 	std::ifstream file{path};
 	auto size = std::filesystem::file_size(path);
 	std::string out;
@@ -78,7 +78,7 @@ bool isAppUsingEngine(const SAPP* sapp, SAPP::AppID appID) {
 	}
 
 	auto installDir = sapp->getAppInstallDir(appID);
-	if (!std::filesystem::exists(installDir)) [[unlikely]] {
+	if (std::error_code ec; !std::filesystem::exists(installDir, ec)) [[unlikely]] {
 		return false;
 	}
 
@@ -94,6 +94,7 @@ bool isAppUsingEngine(const SAPP* sapp, SAPP::AppID appID) {
 
 SAPP::SAPP() {
 	std::filesystem::path steamLocation;
+	std::error_code ec;
 
 #ifdef _WIN32
 	{
@@ -123,14 +124,13 @@ SAPP::SAPP() {
 		// Snap install takes priority, the .steam symlink may exist simultaneously with Snap installs
 		steamLocation = home / "snap" / "steam" / "common" / ".steam" / "steam";
 
-		if (!std::filesystem::exists(steamLocation)) {
+		if (!std::filesystem::exists(steamLocation, ec)) {
 			// Use the regular install path
 			steamLocation = home / ".steam" / "steam";
 		}
 #endif
 	}
 
-	std::error_code ec;
 	if (!std::filesystem::exists(steamLocation, ec)) {
 		std::string location;
 		std::filesystem::path d{"cwd/steamclient64.dll"};
@@ -153,10 +153,13 @@ SAPP::SAPP() {
 	}
 #endif
 
+	if (!std::filesystem::exists(steamLocation.string(), ec)) {
+		return;
+	}
 	this->steamInstallDir = steamLocation.string();
 
 	auto libraryFoldersFilePath = steamLocation / "steamapps" / "libraryfolders.vdf";
-	if (!std::filesystem::exists(libraryFoldersFilePath)) {
+	if (!std::filesystem::exists(libraryFoldersFilePath, ec)) {
 		return;
 	}
 
@@ -289,7 +292,7 @@ std::string SAPP::getAppIconPath(AppID appID) const {
 		return "";
 	}
 	auto path = (std::filesystem::path{this->steamInstallDir} / "appcache" / "librarycache" / (std::to_string(appID) + "_icon.jpg")).string();
-	if (!std::filesystem::exists(path)) {
+	if (std::error_code ec; !std::filesystem::exists(path, ec)) {
 		return "";
 	}
 	return path;
@@ -300,7 +303,7 @@ std::string SAPP::getAppLogoPath(AppID appID) const {
 		return "";
 	}
 	auto path = (std::filesystem::path{this->steamInstallDir} / "appcache" / "librarycache" / (std::to_string(appID) + "_logo.png")).string();
-	if (!std::filesystem::exists(path)) {
+	if (std::error_code ec; !std::filesystem::exists(path, ec)) {
 		return "";
 	}
 	return path;
@@ -311,7 +314,7 @@ std::string SAPP::getAppBoxArtPath(AppID appID) const {
 		return "";
 	}
 	auto path = (std::filesystem::path{this->steamInstallDir} / "appcache" / "librarycache" / (std::to_string(appID) + "_library_600x900.jpg")).string();
-	if (!std::filesystem::exists(path)) {
+	if (std::error_code ec; !std::filesystem::exists(path, ec)) {
 		return "";
 	}
 	return path;
@@ -322,7 +325,7 @@ std::string SAPP::getAppStoreArtPath(AppID appID) const {
 		return "";
 	}
 	auto path = (std::filesystem::path{this->steamInstallDir} / "appcache" / "librarycache" / (std::to_string(appID) + "_header.jpg")).string();
-	if (!std::filesystem::exists(path)) {
+	if (std::error_code ec; !std::filesystem::exists(path, ec)) {
 		return "";
 	}
 	return path;
